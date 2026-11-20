@@ -145,7 +145,7 @@ function LinhaConferencia({ c, ehAdmin }: { c: Conferencia; ehAdmin: boolean }) 
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold">
             {formatarDataHora(c.conferido_em)}
-            <span className="font-normal text-zinc-500"> · {c.perfil?.nome ?? 'Usuário removido'}</span>
+            {c.conferido_por_nome && <span className="font-normal text-zinc-500"> · {c.conferido_por_nome}</span>}
           </div>
           <div className="text-xs text-zinc-500">
             {c.status === 'ok' ? 'Tudo certo' : faltas.length ? plural(faltas.length, 'item em falta', 'itens em falta') : 'Pendência registrada'}
@@ -198,7 +198,7 @@ function LinhaConferencia({ c, ehAdmin }: { c: Conferencia; ehAdmin: boolean }) 
 export function CaixaPagina() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { podeEditar, ehAdmin } = usePermissoes()
+  const { podeConferir, podeEditar, ehAdmin } = usePermissoes()
   const { confirmar, avisar } = useAvisos()
   const { data: caixas = [], isLoading } = useCaixas()
   const validade = useValidade()
@@ -337,14 +337,17 @@ export function CaixaPagina() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Link to={`/caixas/${caixa.id}/conferir`} className={classeBotao('primario', 'lg')}>
-              <ClipboardCheck className="size-5" /> Conferir caixa
-            </Link>
+            {podeConferir && (
+              <Link to={`/caixas/${caixa.id}/conferir`} className={classeBotao('primario', 'lg')}>
+                <ClipboardCheck className="size-5" /> Conferir caixa
+              </Link>
+            )}
             {podeEditar && (
               <Botao tamanho="lg" icone={<Pencil className="size-4" />} onClick={() => setEditarAberto(true)}>
                 Editar
               </Botao>
             )}
+            {podeConferir && (
             <Menu
               botao={(abrir) => (
                 <Botao tamanho="lg" onClick={abrir} aria-label="Mais ações">
@@ -403,6 +406,7 @@ export function CaixaPagina() {
                 </>
               )}
             </Menu>
+            )}
           </div>
 
           {caixa.observacoes && (

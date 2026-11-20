@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { FileJson, FileSpreadsheet, LogOut, Plus, Save, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { ROTULO_PAPEL, useAuth, usePermissoes } from '../auth/auth'
@@ -311,17 +310,13 @@ function Backup() {
 export function Conta() {
   const { sair } = useAuth()
   const { ehAdmin } = usePermissoes()
-  const qc = useQueryClient()
   return (
     <div className="flex max-w-3xl flex-col gap-8">
       <div className="flex items-end justify-between gap-3">
         <h1 className="font-display text-4xl font-bold">Minha conta</h1>
         <Botao
           icone={<LogOut className="size-4" />}
-          onClick={async () => {
-            await sair()
-            qc.clear()
-          }}
+          onClick={sair}
         >
           Sair
         </Botao>

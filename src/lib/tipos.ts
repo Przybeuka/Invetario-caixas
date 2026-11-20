@@ -118,7 +118,7 @@ export interface Conferencia {
   status: StatusConferencia
   observacao: string | null
   conferido_em: string
-  perfil: { nome: string } | null
+  conferido_por_nome: string | null
   itens: ConferenciaItem[]
 }
 

@@ -2,6 +2,7 @@ import {
   Boxes,
   ClipboardCheck,
   History,
+  LogIn,
   Moon,
   Package,
   Printer,
@@ -79,8 +80,8 @@ interface ItemNav {
 }
 
 export function Layout() {
-  const { perfil } = useAuth()
-  const { podeEditar, ehAdmin } = usePermissoes()
+  const { perfil, sessao } = useAuth()
+  const { podeConferir, podeEditar, ehAdmin } = usePermissoes()
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -90,8 +91,12 @@ export function Layout() {
   const itens: ItemNav[] = [
     { para: '/', rotulo: 'Caixas', icone: Boxes, ativoEm: ['/tipo/', '/caixas/'] },
     { para: '/materiais', rotulo: 'Materiais', icone: Package },
-    { para: '/conferencia', rotulo: 'Conferência', icone: ClipboardCheck },
-    { para: '/imprimir', rotulo: 'Imprimir', icone: Printer },
+    ...(podeConferir
+      ? [
+          { para: '/conferencia', rotulo: 'Conferência', icone: ClipboardCheck },
+          { para: '/imprimir', rotulo: 'Imprimir', icone: Printer },
+        ]
+      : []),
     ...(podeEditar ? [{ para: '/historico', rotulo: 'Histórico', icone: History }] : []),
     ...(ehAdmin ? [{ para: '/usuarios', rotulo: 'Usuários', icone: Users }] : []),
   ]
@@ -111,16 +116,25 @@ export function Layout() {
           </Link>
           <div className="ml-auto flex items-center gap-1">
             <BotaoTema />
-            <Link
-              to="/conta"
-              title="Minha conta"
-              className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-1 transition hover:bg-zinc-200/70 sm:pr-3 dark:hover:bg-zinc-800"
-            >
-              <span className="flex size-9 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white dark:bg-white dark:text-zinc-900">
-                {iniciais(perfil?.nome)}
-              </span>
-              <span className="hidden max-w-32 truncate text-sm font-semibold sm:block">{primeiroNome}</span>
-            </Link>
+            {sessao ? (
+              <Link
+                to="/conta"
+                title="Minha conta"
+                className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-1 transition hover:bg-zinc-200/70 sm:pr-3 dark:hover:bg-zinc-800"
+              >
+                <span className="flex size-9 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white dark:bg-white dark:text-zinc-900">
+                  {iniciais(perfil?.nome)}
+                </span>
+                <span className="hidden max-w-32 truncate text-sm font-semibold sm:block">{primeiroNome}</span>
+              </Link>
+            ) : (
+              <Link
+                to={`/entrar?voltar=${encodeURIComponent(pathname)}`}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-zinc-900 px-4 text-[13px] font-semibold uppercase tracking-wider text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900"
+              >
+                <LogIn className="size-4" /> Entrar
+              </Link>
+            )}
           </div>
         </div>
         <nav className="mx-auto max-w-6xl overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -150,6 +164,13 @@ export function Layout() {
           </ul>
         </nav>
       </header>
+      {sessao && !podeConferir && (
+        <div className="nao-imprimir border-b border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-100">
+          <p className="mx-auto max-w-6xl px-4 py-2.5 text-sm">
+            Sua conta aguarda liberação de um administrador. Enquanto isso, você pode consultar as caixas.
+          </p>
+        </div>
+      )}
       <main className="mx-auto max-w-6xl px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-5">
         <Outlet />
       </main>

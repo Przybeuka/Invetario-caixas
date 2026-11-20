@@ -1,9 +1,9 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { Link, Route, Routes, useLocation } from 'react-router-dom'
-import { useAuth } from './auth/auth'
+import { Link, Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router-dom'
+import { useAuth, usePermissoes } from './auth/auth'
 import { Layout, Logo } from './components/Layout'
 import { Carregando, classeBotao, Vazio } from './components/ui'
-import { Login, Pendente, RedefinirSenha } from './pages/Acesso'
+import { Login, RedefinirSenha } from './pages/Acesso'
 import { CaixaPagina } from './pages/Caixa'
 import { Conferir } from './pages/Conferir'
 import { Inicio } from './pages/Inicio'
@@ -20,6 +20,45 @@ const Conta = lazy(() => import('./pages/Conta').then((m) => ({ default: m.Conta
 
 function Sob({ children }: { children: ReactNode }) {
   return <Suspense fallback={<Carregando />}>{children}</Suspense>
+}
+
+type Nivel = 'login' | 'conferente' | 'editor' | 'admin'
+
+/** Páginas que exigem login: sem login vai para "Entrar"; sem nível suficiente mostra aviso. */
+function Exige({ nivel, children }: { nivel: Nivel; children: ReactNode }) {
+  const { sessao } = useAuth()
+  const { podeConferir, podeEditar, ehAdmin } = usePermissoes()
+  const { pathname, search } = useLocation()
+  if (!sessao) return <Navigate to={`/entrar?voltar=${encodeURIComponent(pathname + search)}`} replace />
+  const ok =
+    nivel === 'login' ||
+    (nivel === 'conferente' && podeConferir) ||
+    (nivel === 'editor' && podeEditar) ||
+    (nivel === 'admin' && ehAdmin)
+  if (!ok)
+    return (
+      <Vazio
+        titulo="Sem permissão"
+        texto={
+          podeConferir
+            ? 'Seu nível de acesso não permite abrir esta página.'
+            : 'Sua conta ainda aguarda liberação de um administrador.'
+        }
+        acao={
+          <Link to="/" className={classeBotao('primario')}>
+            Ir para caixas
+          </Link>
+        }
+      />
+    )
+  return <Sob>{children}</Sob>
+}
+
+function Entrar() {
+  const { sessao } = useAuth()
+  const [params] = useSearchParams()
+  if (sessao) return <Navigate to={params.get('voltar') || '/'} replace />
+  return <Login />
 }
 
 function Abertura() {
@@ -45,28 +84,27 @@ function NaoEncontrado() {
 }
 
 export default function App() {
-  const { sessao, perfil, carregando } = useAuth()
+  const { carregando } = useAuth()
   const { pathname } = useLocation()
 
   if (pathname === '/redefinir-senha') return <RedefinirSenha />
   if (carregando) return <Abertura />
-  if (!sessao) return <Login />
-  if (!perfil || perfil.papel === 'pendente') return <Pendente />
 
   return (
     <Routes>
+      <Route path="entrar" element={<Entrar />} />
       <Route element={<Layout />}>
         <Route index element={<Inicio />} />
         <Route path="tipo/:nome" element={<Tipo />} />
         <Route path="caixas/:id" element={<CaixaPagina />} />
-        <Route path="caixas/:id/conferir" element={<Conferir />} />
         <Route path="materiais" element={<Sob><Materiais /></Sob>} />
         <Route path="materiais/:id" element={<Sob><MaterialPagina /></Sob>} />
-        <Route path="conferencia" element={<Sob><Conferencias /></Sob>} />
-        <Route path="imprimir" element={<Sob><Imprimir /></Sob>} />
-        <Route path="historico" element={<Sob><Historico /></Sob>} />
-        <Route path="usuarios" element={<Sob><Usuarios /></Sob>} />
-        <Route path="conta" element={<Sob><Conta /></Sob>} />
+        <Route path="caixas/:id/conferir" element={<Exige nivel="conferente"><Conferir /></Exige>} />
+        <Route path="conferencia" element={<Exige nivel="conferente"><Conferencias /></Exige>} />
+        <Route path="imprimir" element={<Exige nivel="conferente"><Imprimir /></Exige>} />
+        <Route path="historico" element={<Exige nivel="editor"><Historico /></Exige>} />
+        <Route path="usuarios" element={<Exige nivel="admin"><Usuarios /></Exige>} />
+        <Route path="conta" element={<Exige nivel="login"><Conta /></Exige>} />
         <Route path="*" element={<NaoEncontrado />} />
       </Route>
     </Routes>

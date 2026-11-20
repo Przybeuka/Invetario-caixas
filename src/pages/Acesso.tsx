@@ -14,7 +14,7 @@ function Moldura({ children }: { children: ReactNode }) {
       <div className="relative hidden overflow-hidden bg-zinc-950 lg:block">
         <div className="absolute inset-0 grid grid-cols-3 gap-1 opacity-70">
           {MODELOS.map((m) => (
-            <img key={m.id} src={srcModelo(m.id)} alt="" className="size-full object-cover" />
+            <img key={m.id} src={srcModelo(m.id)} alt="" className="size-full object-contain p-6" />
           ))}
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-zinc-950/10" />
@@ -31,6 +31,9 @@ function Moldura({ children }: { children: ReactNode }) {
       </div>
       <div className="flex items-center justify-center px-5 py-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
         <div className="w-full max-w-sm">
+          <Link to="/" className="rotulo mb-6 inline-flex items-center gap-1.5 hover:text-zinc-900 dark:hover:text-white">
+            ← Voltar para a consulta
+          </Link>
           <div className="mb-8 flex items-center gap-3">
             <Logo className="size-12" />
             <div className="leading-tight">

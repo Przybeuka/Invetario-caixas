@@ -163,7 +163,7 @@ export const useConferencias = (caixaId: string | undefined) =>
         supabase
           .from('conferencias')
           .select(
-            'id, caixa_id, status, observacao, conferido_em, perfil:perfis(nome), itens:conferencia_itens(id, material_id, material_nome, quantidade_esperada, quantidade_encontrada, observacao)',
+            'id, caixa_id, status, observacao, conferido_em, conferido_por_nome, itens:conferencia_itens(id, material_id, material_nome, quantidade_esperada, quantidade_encontrada, observacao)',
           )
           .eq('caixa_id', caixaId as string)
           .order('conferido_em', { ascending: false })

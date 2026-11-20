@@ -14,7 +14,7 @@ import { cn, normalizar, plural, ROTULO_TAMANHO } from '../lib/util'
 
 export function Tipo() {
   const { nome = '' } = useParams()
-  const { podeEditar } = usePermissoes()
+  const { podeConferir, podeEditar } = usePermissoes()
   const { data: caixas = [], isLoading } = useCaixas()
   const validade = useValidade()
   const [novaAberta, setNovaAberta] = useState(false)
@@ -89,9 +89,11 @@ export function Tipo() {
                 )}
               </>
             )}
-            <Link to={`/imprimir?tipo=${encodeURIComponent(grupo.nome)}`} className={classeBotao('secundario')}>
-              <Printer className="size-4" /> Adesivos
-            </Link>
+            {podeConferir && (
+              <Link to={`/imprimir?tipo=${encodeURIComponent(grupo.nome)}`} className={classeBotao('secundario')}>
+                <Printer className="size-4" /> Adesivos
+              </Link>
+            )}
           </div>
         </div>
       </header>

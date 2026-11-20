@@ -37,13 +37,14 @@ export function ProvedorAuth({ children }: { children: ReactNode }) {
       if (evento === 'PASSWORD_RECOVERY') navigate('/redefinir-senha')
       if (evento === 'SIGNED_OUT') {
         setPerfil(null)
-        qc.clear()
+        void qc.invalidateQueries()
         setCarregando(false)
         return
       }
       if (evento === 'INITIAL_SESSION' || evento === 'SIGNED_IN' || evento === 'USER_UPDATED') {
         // Não chamar o Supabase direto dentro deste callback (pode travar a sessão).
         setTimeout(() => {
+          if (evento === 'SIGNED_IN') void qc.invalidateQueries()
           void buscarPerfil(novaSessao?.user.id).finally(() => setCarregando(false))
         }, 0)
       }
@@ -91,7 +92,8 @@ export function usePermissoes() {
   const papel: Papel = perfil?.papel ?? 'pendente'
   return {
     papel,
-    podeLer: papel !== 'pendente',
+    logado: !!perfil,
+    podeConferir: papel !== 'pendente',
     podeEditar: papel === 'editor' || papel === 'admin',
     ehAdmin: papel === 'admin',
   }
