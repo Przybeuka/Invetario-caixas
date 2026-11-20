@@ -82,10 +82,13 @@ function Miniatura({ src, className, tamanho }: { src: string | null; className?
   )
 }
 
-function ImagemCaixa({ caixa, className }: { caixa: CaixaResumo; className?: string }) {
+function ImagemCaixa({ caixa, className, tamanho }: { caixa: CaixaResumo; className?: string; tamanho?: string }) {
   const img = imagemDaCaixa(caixa)
   return (
-    <div className={cn('flex shrink-0 items-center justify-center overflow-hidden rounded-[2mm] bg-zinc-100', className)}>
+    <div
+      className={cn('flex shrink-0 items-center justify-center overflow-hidden rounded-[2mm] bg-zinc-100', className)}
+      style={tamanho ? { width: tamanho, height: tamanho } : undefined}
+    >
       {img ? (
         <img
           src={img.grande}
@@ -115,6 +118,9 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
   const hex = caixa.cor_hex ?? '#71717a'
   const specs = especificacoes(caixa)
   const total = itens.reduce((s, i) => s + i.quantidade, 0)
+  // Fotos maiores quando há poucos materiais; reduz para a ficha continuar numa página só.
+  const fotoMm = itens.length <= 6 ? 18 : itens.length <= 8 ? 15 : itens.length <= 10 ? 12.5 : 11
+  const fotoCaixaMm = itens.length <= 8 ? 44 : 38
   return (
     <div className="folha folha-fluida quebra-pagina flex flex-col text-zinc-950">
       <header className="flex gap-[6mm] border-b-[0.6mm] border-zinc-900 pb-[4mm]">
@@ -136,7 +142,7 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
           </dl>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-[2mm]">
-          <ImagemCaixa caixa={caixa} className="size-[36mm]" />
+          <ImagemCaixa caixa={caixa} tamanho={`${fotoCaixaMm}mm`} />
           <div className="flex items-center gap-[2mm] text-right text-[6.5pt] leading-tight text-zinc-500">
             Lista sempre
             <br />
@@ -159,7 +165,7 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
           <thead>
             <tr className="bg-zinc-900 text-left text-[7.5pt] uppercase tracking-[0.12em] text-white">
               <th className="w-[8mm] py-[2mm] pl-[2.5mm] font-semibold">#</th>
-              <th className="w-[13mm] py-[2mm] font-semibold">Foto</th>
+              <th className="py-[2mm] font-semibold" style={{ width: `${fotoMm + 4}mm` }}>Foto</th>
               <th className="py-[2mm] pl-[3mm] font-semibold">Material</th>
               <th className="w-[20mm] py-[2mm] pr-[3mm] text-right font-semibold">Qtd.</th>
               <th className="w-[22mm] py-[2mm] text-center font-semibold">Encontrado</th>
@@ -170,9 +176,9 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
           <tbody>
             {itens.map((i, n) => (
               <tr key={`${i.material.nome}-${n}`} className="break-inside-avoid border-b-[0.2mm] border-zinc-300 even:bg-zinc-50">
-                <td className="py-[1mm] pl-[2.5mm] align-middle text-[8pt] tabular-nums text-zinc-500">{n + 1}</td>
-                <td className="py-[1mm] align-middle">
-                  <Miniatura src={fotoDoItem(i)} className="size-[10mm] rounded-[1mm]" />
+                <td className="py-[0.6mm] pl-[2.5mm] align-middle text-[8pt] tabular-nums text-zinc-500">{n + 1}</td>
+                <td className="py-[0.6mm] align-middle">
+                  <Miniatura src={fotoDoItem(i)} className="rounded-[1.2mm]" tamanho={`${fotoMm}mm`} />
                 </td>
                 <td className="py-[1mm] pl-[3mm] align-middle font-medium uppercase leading-snug">{i.material.nome}</td>
                 <td className="py-[1mm] pr-[3mm] text-right align-middle tabular-nums">
