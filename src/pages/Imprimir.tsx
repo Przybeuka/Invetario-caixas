@@ -54,6 +54,47 @@ async function gerarPdfAdesivos(area: HTMLElement, nomeArquivo: string) {
 }
 
 /** Reduz a prévia para caber na tela sem afetar a impressão. */
+/** Gera o relatório (ficha de conferência) em PDF A4, uma ficha por caixa; fichas longas seguem na página seguinte. */
+async function gerarPdfFichas(area: HTMLElement, nomeArquivo: string) {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas-pro'), import('jspdf')])
+  const fichas = Array.from(area.querySelectorAll<HTMLElement>('.folha'))
+  if (!fichas.length) return
+  const L = 210
+  const A = 297
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true })
+  let primeira = true
+  for (const ficha of fichas) {
+    const canvas = await html2canvas(ficha, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      onclone: (doc) => {
+        doc.querySelectorAll<HTMLElement>('.previa-zoom').forEach((e) => (e.style.zoom = '1'))
+        doc.querySelectorAll<HTMLElement>('.folha').forEach((e) => {
+          e.style.margin = '0'
+          e.style.boxShadow = 'none'
+        })
+      },
+    })
+    const altTotalMm = (canvas.height / canvas.width) * L
+    const paginas = Math.max(1, Math.ceil(altTotalMm / A - 0.01))
+    const pxPorPagina = Math.round((A / L) * canvas.width)
+    for (let n = 0; n < paginas; n++) {
+      const fatia = document.createElement('canvas')
+      fatia.width = canvas.width
+      fatia.height = Math.min(pxPorPagina, canvas.height - n * pxPorPagina)
+      const ctx = fatia.getContext('2d')!
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, fatia.width, fatia.height)
+      ctx.drawImage(canvas, 0, n * pxPorPagina, canvas.width, fatia.height, 0, 0, canvas.width, fatia.height)
+      if (!primeira) pdf.addPage('a4', 'portrait')
+      primeira = false
+      pdf.addImage(fatia.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, L, (fatia.height / fatia.width) * L, undefined, 'FAST')
+    }
+  }
+  pdf.save(nomeArquivo)
+}
+
 function useEscala(larguraMm: number) {
   const ref = useRef<HTMLDivElement>(null)
   const [escala, setEscala] = useState(1)
@@ -462,10 +503,11 @@ export function Imprimir() {
     setGerando(true)
     setErroPdf(null)
     try {
-      const base = caixaUnica ? `adesivo-caixa-${caixaUnica.numero}` : tipoParam ? `adesivos-${normalizar(tipoParam).replace(/\s+/g, '-')}` : 'adesivos-caixas'
-      await gerarPdfAdesivos(ref.current, `${base}.pdf`)
+      const sufixo = caixaUnica ? `caixa-${caixaUnica.numero}` : tipoParam ? normalizar(tipoParam).replace(/\s+/g, '-') : 'caixas'
+      if (documento === 'adesivo') await gerarPdfAdesivos(ref.current, `adesivos-${sufixo}.pdf`)
+      else await gerarPdfFichas(ref.current, `relatorio-conferencia-${sufixo}.pdf`)
     } catch {
-      setErroPdf('Não foi possível gerar o PDF. Use Imprimir e escolha “Salvar em Arquivos”.')
+      setErroPdf('Não foi possível gerar o PDF. Tente novamente em instantes.')
     } finally {
       setGerando(false)
     }
@@ -482,31 +524,20 @@ export function Imprimir() {
             <h1 className="font-display text-4xl font-bold">Imprimir</h1>
             <p className="text-sm text-zinc-500">
               {documento === 'adesivo'
-                ? 'Salvar PDF gera um arquivo com uma página de 13 × 25 cm por adesivo.'
-                : 'No iPad: toque em Imprimir e, na tela de impressão, use “Salvar em Arquivos”.'}
+                ? 'Gerar relatório cria um PDF com uma página de 13 × 25 cm por adesivo.'
+                : 'Gerar relatório cria um PDF A4 com uma ficha de conferência por caixa.'}
             </p>
             {erroPdf && <p className="mt-1 text-sm font-semibold text-red-600">{erroPdf}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            {documento === 'adesivo' && (
-              <Botao
-                variante="primario"
-                tamanho="lg"
-                icone={<Download className="size-5" />}
-                disabled={!selecionadas.length || gerando}
-                onClick={salvarPdf}
-              >
-                {gerando ? 'Gerando PDF…' : 'Salvar PDF 13 × 25 cm'}
-              </Botao>
-            )}
             <Botao
-              variante={documento === 'adesivo' ? 'secundario' : 'primario'}
+              variante="primario"
               tamanho="lg"
-              icone={<Printer className="size-5" />}
-              disabled={!selecionadas.length}
-              onClick={() => window.print()}
+              icone={<Download className="size-5" />}
+              disabled={!selecionadas.length || gerando}
+              onClick={salvarPdf}
             >
-              Imprimir
+              {gerando ? 'Gerando…' : 'Gerar relatório'}
             </Botao>
           </div>
         </div>
