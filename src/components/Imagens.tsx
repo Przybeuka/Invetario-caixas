@@ -1,39 +1,54 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { Camera, LoaderCircle, Package, Star, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { definirCapa, enviarFotos, excluirFoto, type DonoFoto } from '../lib/api'
-import type { Grupo } from '../lib/grupos'
-import { srcModelo } from '../lib/modelos'
-import { urlFoto } from '../lib/supabase'
-import type { Foto } from '../lib/tipos'
-import { cn, mensagemErro } from '../lib/util'
-import { useAvisos } from './avisos'
-import { Modal } from './Modal'
-import { Botao } from './ui'
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Camera,
+  Images,
+  LoaderCircle,
+  Package,
+  Star,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import {
+  definirCapa,
+  enviarFotos,
+  excluirFoto,
+  vincularFotos,
+  type DonoFoto,
+  type FotoExistente,
+} from "../lib/api";
+import type { Grupo } from "../lib/grupos";
+import { srcModelo } from "../lib/modelos";
+import { urlFoto } from "../lib/supabase";
+import type { Foto } from "../lib/tipos";
+import { cn, mensagemErro } from "../lib/util";
+import { useAvisos } from "./avisos";
+import { Modal } from "./Modal";
+import { SeletorFotoExistente } from "./SeletorFotoExistente";
+import { Botao } from "./ui";
 
 export function SemFoto({ compacto }: { compacto?: boolean }) {
   return (
     <div className="flex size-full flex-col items-center justify-center gap-1 bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500">
-      <Package className={compacto ? 'size-5' : 'size-8'} strokeWidth={1.5} />
+      <Package className={compacto ? "size-5" : "size-8"} strokeWidth={1.5} />
       {!compacto && <span className="rotulo text-[10px]">Sem foto</span>}
     </div>
-  )
+  );
 }
 
 export function Imagem({
   src,
-  alt = '',
+  alt = "",
   className,
   compacto,
 }: {
-  src: string | null | undefined
-  alt?: string
-  className?: string
-  compacto?: boolean
+  src: string | null | undefined;
+  alt?: string;
+  className?: string;
+  compacto?: boolean;
 }) {
-  const [erro, setErro] = useState(false)
-  useEffect(() => setErro(false), [src])
-  if (!src || erro) return <SemFoto compacto={compacto} />
+  const [erro, setErro] = useState(false);
+  useEffect(() => setErro(false), [src]);
+  if (!src || erro) return <SemFoto compacto={compacto} />;
   return (
     <img
       src={src}
@@ -42,25 +57,30 @@ export function Imagem({
       decoding="async"
       draggable={false}
       onError={() => setErro(true)}
-      className={cn('size-full object-cover', className)}
+      className={cn("size-full object-cover", className)}
     />
-  )
+  );
 }
 
 /** Foto do cartão do tipo: foto da caixa → foto do modelo → mosaico dos materiais. */
 export function ImagemGrupo({ grupo }: { grupo: Grupo }) {
-  if (grupo.imagem) return <Imagem src={grupo.imagem.src} alt={grupo.nome} />
+  if (grupo.imagem) return <Imagem src={grupo.imagem.src} alt={grupo.nome} />;
   if (grupo.fotosMateriais.length) {
-    const fotos = grupo.fotosMateriais
+    const fotos = grupo.fotosMateriais;
     return (
-      <div className={cn('grid size-full gap-px bg-zinc-200 dark:bg-zinc-700', fotos.length > 1 && 'grid-cols-2')}>
+      <div
+        className={cn(
+          "grid size-full gap-px bg-zinc-200 dark:bg-zinc-700",
+          fotos.length > 1 && "grid-cols-2",
+        )}
+      >
         {fotos.map((f) => (
           <Imagem key={f} src={urlFoto(f)} compacto />
         ))}
       </div>
-    )
+    );
   }
-  return <SemFoto />
+  return <SemFoto />;
 }
 
 export function Miniatura({
@@ -68,20 +88,25 @@ export function Miniatura({
   modelo,
   className,
 }: {
-  caminho?: string | null
+  caminho?: string | null;
   /** Id do modelo 3D (tem prioridade sobre a foto). */
-  modelo?: string | null
-  className?: string
+  modelo?: string | null;
+  className?: string;
 }) {
   return (
-    <div className={cn('size-12 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800', className)}>
+    <div
+      className={cn(
+        "size-12 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800",
+        className,
+      )}
+    >
       {modelo ? (
         <Imagem src={srcModelo(modelo)} compacto className="object-contain" />
       ) : (
         <Imagem src={caminho ? urlFoto(caminho) : null} compacto />
       )}
     </div>
-  )
+  );
 }
 
 /** Galeria com envio de fotos (câmera ou biblioteca), capa e exclusão. */
@@ -92,78 +117,110 @@ export function Galeria({
   modelo,
   alt,
 }: {
-  fotos: Foto[]
-  dono: DonoFoto
-  podeEditar: boolean
-  modelo?: string | null
-  alt: string
+  fotos: Foto[];
+  dono: DonoFoto;
+  podeEditar: boolean;
+  modelo?: string | null;
+  alt: string;
 }) {
   const ordenadas = useMemo(
-    () => [...fotos].sort((a, b) => a.ordem - b.ordem || a.criado_em.localeCompare(b.criado_em)),
+    () =>
+      [...fotos].sort(
+        (a, b) => a.ordem - b.ordem || a.criado_em.localeCompare(b.criado_em),
+      ),
     [fotos],
-  )
-  const [indice, setIndice] = useState(0)
-  const [ampliada, setAmpliada] = useState(false)
-  const [enviando, setEnviando] = useState<{ feitos: number; total: number } | null>(null)
-  const [ocupado, setOcupado] = useState(false)
-  const entrada = useRef<HTMLInputElement>(null)
-  const { avisar, confirmar } = useAvisos()
-  const qc = useQueryClient()
+  );
+  const [indice, setIndice] = useState(0);
+  const [ampliada, setAmpliada] = useState(false);
+  const [enviando, setEnviando] = useState<{
+    feitos: number;
+    total: number;
+  } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [escolhendo, setEscolhendo] = useState(false);
+  const entrada = useRef<HTMLInputElement>(null);
+  const { avisar, confirmar } = useAvisos();
+  const qc = useQueryClient();
 
-  const atual = ordenadas[Math.min(indice, ordenadas.length - 1)]
-  const srcPrincipal = atual ? urlFoto(atual.caminho) : modelo ? srcModelo(modelo, true) : null
+  const atual = ordenadas[Math.min(indice, ordenadas.length - 1)];
+  const srcPrincipal = atual
+    ? urlFoto(atual.caminho)
+    : modelo
+      ? srcModelo(modelo, true)
+      : null;
 
   async function aoEscolher(e: ChangeEvent<HTMLInputElement>) {
-    const arquivos = Array.from(e.target.files ?? [])
-    e.target.value = ''
-    if (!arquivos.length) return
-    setEnviando({ feitos: 0, total: arquivos.length })
+    const arquivos = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!arquivos.length) return;
+    setEnviando({ feitos: 0, total: arquivos.length });
     try {
-      await enviarFotos(arquivos, dono, (feitos) => setEnviando({ feitos, total: arquivos.length }))
-      await qc.invalidateQueries()
-      avisar(arquivos.length === 1 ? 'Foto adicionada.' : `${arquivos.length} fotos adicionadas.`)
+      await enviarFotos(arquivos, dono, (feitos) =>
+        setEnviando({ feitos, total: arquivos.length }),
+      );
+      await qc.invalidateQueries();
+      avisar(
+        arquivos.length === 1
+          ? "Foto adicionada."
+          : `${arquivos.length} fotos adicionadas.`,
+      );
     } catch (erro) {
-      await qc.invalidateQueries()
-      avisar(mensagemErro(erro), 'erro')
+      await qc.invalidateQueries();
+      avisar(mensagemErro(erro), "erro");
     } finally {
-      setEnviando(null)
+      setEnviando(null);
+    }
+  }
+
+  async function usarExistentes(lista: FotoExistente[]) {
+    try {
+      await vincularFotos(lista, dono);
+      await qc.invalidateQueries();
+      avisar(
+        lista.length === 1
+          ? "Foto adicionada."
+          : `${lista.length} fotos adicionadas.`,
+      );
+    } catch (erro) {
+      avisar(mensagemErro(erro), "erro");
+      throw erro;
     }
   }
 
   async function capa() {
-    if (!atual) return
-    setOcupado(true)
+    if (!atual) return;
+    setOcupado(true);
     try {
-      await definirCapa(atual, ordenadas)
-      await qc.invalidateQueries()
-      setIndice(0)
-      avisar('Foto definida como capa.')
+      await definirCapa(atual, ordenadas);
+      await qc.invalidateQueries();
+      setIndice(0);
+      avisar("Foto definida como capa.");
     } catch (erro) {
-      avisar(mensagemErro(erro), 'erro')
+      avisar(mensagemErro(erro), "erro");
     } finally {
-      setOcupado(false)
+      setOcupado(false);
     }
   }
 
   async function excluir() {
-    if (!atual) return
+    if (!atual) return;
     const ok = await confirmar({
-      titulo: 'Excluir foto?',
-      mensagem: 'A foto será apagada definitivamente.',
-      confirmar: 'Excluir',
+      titulo: "Excluir foto?",
+      mensagem: "A foto será apagada definitivamente.",
+      confirmar: "Excluir",
       perigo: true,
-    })
-    if (!ok) return
-    setOcupado(true)
+    });
+    if (!ok) return;
+    setOcupado(true);
     try {
-      await excluirFoto(atual)
-      await qc.invalidateQueries()
-      setIndice(0)
-      avisar('Foto excluída.')
+      await excluirFoto(atual);
+      await qc.invalidateQueries();
+      setIndice(0);
+      avisar("Foto excluída.");
     } catch (erro) {
-      avisar(mensagemErro(erro), 'erro')
+      avisar(mensagemErro(erro), "erro");
     } finally {
-      setOcupado(false)
+      setOcupado(false);
     }
   }
 
@@ -171,7 +228,12 @@ export function Galeria({
     <div className="flex flex-col gap-3">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
         {srcPrincipal ? (
-          <button type="button" className="size-full" onClick={() => setAmpliada(true)} aria-label="Ampliar foto">
+          <button
+            type="button"
+            className="size-full"
+            onClick={() => setAmpliada(true)}
+            aria-label="Ampliar foto"
+          >
             <Imagem src={srcPrincipal} alt={alt} />
           </button>
         ) : (
@@ -209,7 +271,11 @@ export function Galeria({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/55 text-white">
             <LoaderCircle className="size-7 animate-spin" />
             <span className="text-sm font-semibold">
-              Enviando {enviando.feitos + 1 > enviando.total ? enviando.total : enviando.feitos + 1} de {enviando.total}…
+              Enviando{" "}
+              {enviando.feitos + 1 > enviando.total
+                ? enviando.total
+                : enviando.feitos + 1}{" "}
+              de {enviando.total}…
             </span>
           </div>
         )}
@@ -225,8 +291,10 @@ export function Galeria({
                 onClick={() => setIndice(i)}
                 aria-label={`Foto ${i + 1}`}
                 className={cn(
-                  'size-16 shrink-0 overflow-hidden rounded-xl ring-2 transition',
-                  i === indice ? 'ring-zinc-900 dark:ring-white' : 'ring-transparent opacity-75 hover:opacity-100',
+                  "size-16 shrink-0 overflow-hidden rounded-xl ring-2 transition",
+                  i === indice
+                    ? "ring-zinc-900 dark:ring-white"
+                    : "ring-transparent opacity-75 hover:opacity-100",
                 )}
               >
                 <Imagem src={urlFoto(f.caminho_miniatura)} compacto />
@@ -234,23 +302,56 @@ export function Galeria({
             ))}
           {podeEditar && (
             <>
-              <input ref={entrada} type="file" accept="image/*" multiple hidden onChange={aoEscolher} />
+              <input
+                ref={entrada}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={aoEscolher}
+              />
               <Botao
                 icone={<Camera className="size-4" />}
                 onClick={() => entrada.current?.click()}
                 disabled={!!enviando}
-                className={ordenadas.length > 1 ? 'h-16' : ''}
+                className={ordenadas.length > 1 ? "h-16" : ""}
               >
-                {ordenadas.length ? 'Mais fotos' : 'Adicionar foto'}
+                {ordenadas.length ? "Mais fotos" : "Adicionar foto"}
+              </Botao>
+              <Botao
+                icone={<Images className="size-4" />}
+                onClick={() => setEscolhendo(true)}
+                disabled={!!enviando}
+                className={ordenadas.length > 1 ? "h-16" : ""}
+              >
+                Já existente
               </Botao>
             </>
           )}
         </div>
       )}
 
-      <Modal aberto={ampliada} aoFechar={() => setAmpliada(false)} titulo={alt} largura="max-w-5xl">
-        {srcPrincipal && <img src={srcPrincipal} alt={alt} className="mx-auto max-h-[72dvh] w-auto rounded-xl" />}
+      <SeletorFotoExistente
+        aberto={escolhendo}
+        aoFechar={() => setEscolhendo(false)}
+        aoConfirmar={usarExistentes}
+        jaUsadas={ordenadas.map((f) => f.caminho)}
+      />
+
+      <Modal
+        aberto={ampliada}
+        aoFechar={() => setAmpliada(false)}
+        titulo={alt}
+        largura="max-w-5xl"
+      >
+        {srcPrincipal && (
+          <img
+            src={srcPrincipal}
+            alt={alt}
+            className="mx-auto max-h-[72dvh] w-auto rounded-xl"
+          />
+        )}
       </Modal>
     </div>
-  )
+  );
 }
