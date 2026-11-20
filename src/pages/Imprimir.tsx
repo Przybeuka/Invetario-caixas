@@ -322,6 +322,10 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
               {[caixa.cor_nome, caixa.tamanho ? ROTULO_TAMANHO[caixa.tamanho] : null].filter(Boolean).join(' · ')}
             </span>
           </div>
+          <div className="flex shrink-0 flex-col items-center justify-end gap-[0.8mm]">
+            <CodigoQR caixa={caixa} className="w-[20mm]" />
+            <span className="text-[5pt] font-semibold uppercase tracking-[0.12em] text-zinc-500">Ver conteúdo</span>
+          </div>
           <ImagemCaixa caixa={caixa} className="size-[44mm]" />
         </div>
 
@@ -341,18 +345,14 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
             )}
           </dl>
           {caixa.peso_kg ? (
-            <div className="flex shrink-0 flex-col justify-center border-l-[0.3mm] border-zinc-300 px-[3mm]">
+            <div className="flex shrink-0 flex-col justify-center border-l-[0.3mm] border-zinc-300 pl-[4mm] pr-[1mm]">
               <span className="text-[9pt] font-bold uppercase tracking-[0.2em] text-zinc-600">Peso</span>
-              <span className="font-display text-[30pt] font-bold uppercase leading-[0.9] tabular-nums">
+              <span className="font-display text-[36pt] font-bold uppercase leading-[0.9] tabular-nums">
                 {formatarDecimal(caixa.peso_kg)}
-                <span className="ml-[1mm] text-[16pt]">kg</span>
+                <span className="ml-[1mm] text-[18pt]">kg</span>
               </span>
             </div>
           ) : null}
-          <div className="flex shrink-0 flex-col items-center justify-center gap-[0.8mm]">
-            <CodigoQR caixa={caixa} className="w-[15mm]" />
-            <span className="text-[5pt] font-semibold uppercase tracking-[0.12em] text-zinc-500">Ver conteúdo</span>
-          </div>
         </div>
 
         <div className="mt-[3mm] min-h-0 flex-1 overflow-hidden">
