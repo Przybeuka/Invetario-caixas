@@ -36,14 +36,22 @@ export function Modal({
 
   const tentarFechar = useCallback(async () => {
     if (protegido && mexeu && avisos) {
-      const sair = await avisos.confirmar({
-        titulo: 'Descartar alterações?',
-        mensagem: 'Você mudou alguns campos e ainda não salvou. Se sair agora, essas mudanças serão perdidas.',
-        confirmar: 'Descartar',
+      const r = await avisos.escolher({
+        titulo: 'Salvar alterações?',
+        mensagem: 'Você mudou alguns campos. Quer salvar antes de sair?',
+        sim: 'Sim, salvar',
+        nao: 'Não salvar',
         cancelar: 'Continuar editando',
-        perigo: true,
       })
-      if (!sair) return
+      if (r === 'cancelar') return
+      if (r === 'sim') {
+        // Aciona o botão de salvar do próprio formulário (que valida os campos); a janela fecha quando salvar.
+        const salvar = ref.current?.querySelector<HTMLButtonElement>('footer button[type="submit"]')
+        if (salvar) {
+          salvar.click()
+          return
+        }
+      }
     }
     aoFechar()
   }, [protegido, mexeu, avisos, aoFechar])

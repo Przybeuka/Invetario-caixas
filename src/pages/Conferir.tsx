@@ -169,7 +169,7 @@ export function Conferir() {
   const [marcas, setMarcas] = useState<Record<string, Marca>>({})
   const [observacao, setObservacao] = useState('')
   const [pendencia, setPendencia] = useState(false)
-  const { avisar, confirmar } = useAvisos()
+  const { avisar, confirmar, escolher } = useAvisos()
   const [recuperadoEm, setRecuperadoEm] = useState<number | null>(null)
   const [salvo, setSalvo] = useState(false)
   const restaurou = useRef(false)
@@ -225,17 +225,26 @@ export function Conferir() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marcas, observacao, pendencia, salvo, id])
 
-  useTravaSaida(temProgresso && !salvo, () =>
-    confirmar({
-      titulo: 'Sair da conferência?',
-      mensagem: 'A conferência ainda não foi registrada. O que você marcou fica guardado como rascunho neste aparelho e volta quando você abrir a conferência desta caixa de novo.',
-      confirmar: 'Sair',
+  useTravaSaida(temProgresso && !salvo, async () => {
+    const r = await escolher({
+      titulo: 'Salvar antes de sair?',
+      mensagem:
+        'A conferência ainda não foi registrada. Sim guarda o que você marcou como rascunho neste aparelho; Não apaga as marcações.',
+      sim: 'Sim, salvar rascunho',
+      nao: 'Não salvar',
       cancelar: 'Continuar conferindo',
-    }).then((sair) => {
-      if (sair) gravarRascunho()
-      return sair
-    }),
-  )
+    })
+    if (r === 'cancelar') return false
+    if (r === 'sim') gravarRascunho()
+    else {
+      try {
+        localStorage.removeItem(chaveRascunho(id))
+      } catch {
+        /* sem armazenamento: nada a apagar */
+      }
+    }
+    return true
+  })
 
   async function descartarRascunho() {
     const ok = await confirmar({

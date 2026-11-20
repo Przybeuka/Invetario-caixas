@@ -29,9 +29,21 @@ export interface PedidoConfirmacao {
   perigo?: boolean
 }
 
+export interface PedidoEscolha {
+  titulo: string
+  mensagem?: ReactNode
+  sim: string
+  nao: string
+  cancelar?: string
+}
+
+export type RespostaEscolha = 'sim' | 'nao' | 'cancelar'
+
 interface ContextoAvisos {
   avisar: (texto: string, tipo?: TipoAviso) => void
   confirmar: (pedido: PedidoConfirmacao) => Promise<boolean>
+  /** Pergunta com três saídas: Sim, Não ou Cancelar (continuar onde estava). */
+  escolher: (pedido: PedidoEscolha) => Promise<RespostaEscolha>
 }
 
 const Ctx = createContext<ContextoAvisos | null>(null)
@@ -41,6 +53,7 @@ type ElementoPopover = HTMLDivElement & { showPopover?: () => void; hidePopover?
 export function ProvedorAvisos({ children }: { children: ReactNode }) {
   const [avisos, setAvisos] = useState<Aviso[]>([])
   const [pedido, setPedido] = useState<(PedidoConfirmacao & { resolver: (v: boolean) => void }) | null>(null)
+  const [escolha, setEscolha] = useState<(PedidoEscolha & { resolver: (v: RespostaEscolha) => void }) | null>(null)
   const pilha = useRef<ElementoPopover>(null)
   const sequencia = useRef(0)
 
@@ -55,6 +68,16 @@ export function ProvedorAvisos({ children }: { children: ReactNode }) {
     (p: PedidoConfirmacao) => new Promise<boolean>((resolver) => setPedido({ ...p, resolver })),
     [],
   )
+
+  const escolher = useCallback(
+    (p: PedidoEscolha) => new Promise<RespostaEscolha>((resolver) => setEscolha({ ...p, resolver })),
+    [],
+  )
+
+  function responderEscolha(valor: RespostaEscolha) {
+    escolha?.resolver(valor)
+    setEscolha(null)
+  }
 
   function responder(valor: boolean) {
     pedido?.resolver(valor)
@@ -74,7 +97,7 @@ export function ProvedorAvisos({ children }: { children: ReactNode }) {
     }
   }, [total])
 
-  const valor = useMemo(() => ({ avisar, confirmar }), [avisar, confirmar])
+  const valor = useMemo(() => ({ avisar, confirmar, escolher }), [avisar, confirmar, escolher])
 
   return (
     <Ctx.Provider value={valor}>
@@ -121,6 +144,23 @@ export function ProvedorAvisos({ children }: { children: ReactNode }) {
         }
       >
         <div className="text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-300">{pedido?.mensagem}</div>
+      </Modal>
+      <Modal
+        aberto={!!escolha}
+        aoFechar={() => responderEscolha('cancelar')}
+        titulo={escolha?.titulo ?? ''}
+        largura="max-w-md"
+        rodape={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Botao onClick={() => responderEscolha('cancelar')}>{escolha?.cancelar ?? 'Continuar editando'}</Botao>
+            <Botao onClick={() => responderEscolha('nao')}>{escolha?.nao}</Botao>
+            <Botao variante="primario" onClick={() => responderEscolha('sim')}>
+              {escolha?.sim}
+            </Botao>
+          </div>
+        }
+      >
+        <div className="text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-300">{escolha?.mensagem}</div>
       </Modal>
     </Ctx.Provider>
   )

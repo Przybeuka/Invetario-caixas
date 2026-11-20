@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 /**
  * Trava de saída: enquanto `ativo`, fechar a aba avisa pelo navegador e clicar em qualquer link
  * interno do app pede confirmação antes de trocar de página.
- * (O botão "voltar" do navegador não dá para interceptar neste tipo de roteador.)
+ * O botão "voltar" (e o gesto de voltar do iPad/iPhone) também é interceptado: enquanto a trava está ativa
+ * fica uma entrada extra no histórico, e voltar só desfaz essa entrada depois da resposta.
  */
 export function useTravaSaida(ativo: boolean, confirmarSaida: () => Promise<boolean>) {
   const navigate = useNavigate()
@@ -29,12 +30,34 @@ export function useTravaSaida(ativo: boolean, confirmarSaida: () => Promise<bool
       e.preventDefault()
       e.stopPropagation()
       void confirmar.current().then((sair) => {
-        if (sair) navigate(url.pathname + url.search + url.hash)
+        if (sair) navigate(url.pathname + url.search + url.hash, { replace: true })
       })
     }
+    // Entrada extra no histórico: o "voltar" cai nela em vez de sair da página.
+    const estadoAtual = window.history.state
+    window.history.pushState(estadoAtual, '', window.location.href)
+    let ativoAinda = true
+    let perguntando = false
+    const aoVoltar = () => {
+      if (!ativoAinda || perguntando) return
+      perguntando = true
+      void confirmar.current().then((sair) => {
+        perguntando = false
+        if (sair) {
+          ativoAinda = false
+          window.removeEventListener('popstate', aoVoltar)
+          window.history.back()
+        } else {
+          window.history.pushState(estadoAtual, '', window.location.href)
+        }
+      })
+    }
+    window.addEventListener('popstate', aoVoltar)
     window.addEventListener('beforeunload', antesDeFechar)
     document.addEventListener('click', aoClicar, true)
     return () => {
+      ativoAinda = false
+      window.removeEventListener('popstate', aoVoltar)
       window.removeEventListener('beforeunload', antesDeFechar)
       document.removeEventListener('click', aoClicar, true)
     }
