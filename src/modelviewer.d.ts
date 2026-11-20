@@ -18,6 +18,10 @@ declare module 'react' {
         exposure?: string
         'environment-image'?: string
         'camera-orbit'?: string
+        'min-camera-orbit'?: string
+        'max-camera-orbit'?: string
+        'disable-zoom'?: boolean
+        'disable-pan'?: boolean
         onLoad?: () => void
         onError?: () => void
       }

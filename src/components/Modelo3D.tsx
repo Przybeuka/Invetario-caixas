@@ -1,13 +1,14 @@
 import { Box, LoaderCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Props = { src: string; alt: string; poster?: string | null; interativo?: boolean }
 
-/** Visualizador 3D interativo (arraste para girar). A biblioteca só é baixada quando o modelo é aberto. */
+/** Visualizador 3D (gira devagar sozinho; onde é interativo, dá para arrastar). A biblioteca só é baixada quando aparece. */
 export function Modelo3D({ src, alt, poster, interativo = true }: Props) {
   const [pronto, setPronto] = useState(false)
   const [carregado, setCarregado] = useState(false)
   const [falhou, setFalhou] = useState(false)
+  const ref = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     let ativo = true
@@ -18,6 +19,22 @@ export function Modelo3D({ src, alt, poster, interativo = true }: Props) {
       ativo = false
     }
   }, [])
+
+  // Eventos do <model-viewer> ligados direto no elemento (os de React não chegam em web components).
+  useEffect(() => {
+    const el = ref.current
+    if (!pronto || !el) return
+    setCarregado(false)
+    const aoCarregar = () => setCarregado(true)
+    const aoFalhar = () => setFalhou(true)
+    el.addEventListener('load', aoCarregar)
+    el.addEventListener('error', aoFalhar)
+    if ((el as HTMLElement & { loaded?: boolean }).loaded) setCarregado(true)
+    return () => {
+      el.removeEventListener('load', aoCarregar)
+      el.removeEventListener('error', aoFalhar)
+    }
+  }, [pronto, src])
 
   if (falhou) {
     return poster ? (
@@ -31,30 +48,40 @@ export function Modelo3D({ src, alt, poster, interativo = true }: Props) {
 
   return (
     <div className="relative size-full">
-      {!carregado && poster && <img src={poster} alt="" className="absolute inset-0 size-full object-cover" />}
       {pronto && (
         <model-viewer
+          ref={ref}
           src={src}
           alt={alt}
           camera-controls={interativo || undefined}
+          disable-zoom
+          disable-pan
           auto-rotate
-          auto-rotate-delay={interativo ? '2500' : '0'}
-          rotation-per-second="18deg"
+          auto-rotate-delay="1500"
+          rotation-per-second="7deg"
           touch-action="pan-y"
           interaction-prompt="none"
           shadow-intensity="0.9"
           shadow-softness="1"
           exposure="1"
           environment-image="neutral"
-          camera-orbit="35deg 70deg auto"
-          onLoad={() => setCarregado(true)}
-          onError={() => setFalhou(true)}
-          style={{ width: '100%', height: '100%', background: 'transparent', outline: 'none', pointerEvents: interativo ? 'auto' : 'none' }}
+          camera-orbit="30deg 68deg auto"
+          min-camera-orbit="auto 55deg auto"
+          max-camera-orbit="auto 78deg auto"
+          style={{
+            width: '100%',
+            height: '100%',
+            background: 'transparent',
+            outline: 'none',
+            pointerEvents: interativo ? 'auto' : 'none',
+            opacity: carregado ? 1 : 0,
+            transition: 'opacity 250ms',
+          }}
         />
       )}
       {!carregado && (
         <div className="absolute inset-0 flex items-center justify-center">
-          {!poster && <LoaderCircle className="size-7 animate-spin text-zinc-500" />}
+          <LoaderCircle className="size-6 animate-spin text-zinc-400" />
         </div>
       )}
     </div>
