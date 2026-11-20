@@ -18,5 +18,5 @@ export const MODELOS: FotoModelo[] = [
 ]
 
 export function srcModelo(id: string, grande = false): string {
-  return `/modelos/${id}${grande ? '' : '_min'}.jpg`
+  return `/modelos/${id}${grande ? '' : '_min'}.webp`
 }
