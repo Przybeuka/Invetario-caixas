@@ -46,8 +46,8 @@ export function modeloPorTamanho(cor: string | null, tamanho: string | null): st
   return (tamanho && m[tamanho]) || null
 }
 
-export function imagemDaCaixa(c: CaixaResumo): Imagem | null {
-  const miniatura = c.fotos_caixa?.[0]
+export function imagemDaCaixa(c: CaixaResumo, soModelo = false): Imagem | null {
+  const miniatura = soModelo ? undefined : c.fotos_caixa?.[0]
   if (miniatura) {
     return { src: urlFoto(miniatura), grande: urlFoto(miniatura.replace(/_min\.jpg$/, '.jpg')), origem: 'foto' }
   }
@@ -92,7 +92,6 @@ export function agrupar(caixas: CaixaResumo[], validadeDias: number): Grupo[] {
       }
     }
     const estados = lista.map((c) => estadoDaCaixa(c, validadeDias))
-    const comFoto = lista.find((c) => c.fotos_caixa?.length)
     grupos.push({
       chave,
       nome: lista[0].nome,
@@ -100,7 +99,7 @@ export function agrupar(caixas: CaixaResumo[], validadeDias: number): Grupo[] {
       cores: [...cores.values()].sort((a, b) => a.ordem - b.ordem),
       estado: piorEstado(estados),
       conferidas: estados.filter((e) => e === 'ok').length,
-      imagem: imagemDaCaixa(comFoto ?? lista[0]),
+      imagem: imagemDaCaixa(lista[0], true),
       fotosMateriais: [...new Set(lista.flatMap((c) => c.fotos_materiais ?? []))].slice(0, 4),
     })
   }
