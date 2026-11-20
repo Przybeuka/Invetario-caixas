@@ -30,12 +30,28 @@ export interface Grupo {
 
 const COR_NEUTRA = '#a1a1aa'
 
+/** Modelo 3D que combina cor + tamanho (azul e preta têm pequena, média e grande). */
+const MODELO_POR_COR: Record<string, Partial<Record<string, string>>> = {
+  azul: { pequena: 'azul-3', media: 'azul-1', grande: 'azul-2' },
+  preta: { pequena: 'preta-3', media: 'preta-1', grande: 'preta-2' },
+  caqui: { grande: 'caqui-1' },
+  amarela: { media: 'amarela-1' },
+  vermelha: { pequena: 'vermelha-1' },
+}
+
+function modeloPorTamanho(cor: string | null, tamanho: string | null): string | null {
+  if (!cor) return null
+  const m = MODELO_POR_COR[normalizar(cor)]
+  if (!m) return null
+  return (tamanho && m[tamanho]) || null
+}
+
 export function imagemDaCaixa(c: CaixaResumo): Imagem | null {
   const miniatura = c.fotos_caixa?.[0]
   if (miniatura) {
     return { src: urlFoto(miniatura), grande: urlFoto(miniatura.replace(/_min\.jpg$/, '.jpg')), origem: 'foto' }
   }
-  const modelo = c.foto_modelo || c.cor_foto_modelo
+  const modelo = c.foto_modelo || modeloPorTamanho(c.cor_nome, c.tamanho) || c.cor_foto_modelo
   if (modelo) return { src: srcModelo(modelo), grande: srcModelo(modelo, true), origem: 'modelo' }
   return null
 }
