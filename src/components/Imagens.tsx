@@ -50,7 +50,9 @@ export function Imagem({
 }
 
 /** Foto do cartão do tipo: foto da caixa → foto do modelo → mosaico dos materiais. */
-export function ImagemGrupo({ grupo }: { grupo: Grupo }) {
+export function ImagemGrupo({ grupo, interativo = false }: { grupo: Grupo; interativo?: boolean }) {
+  if (grupo.modelo3d)
+    return <Modelo3D src={grupo.modelo3d} alt={grupo.nome} poster={grupo.imagem?.src} interativo={interativo} />
   if (grupo.imagem) return <Imagem src={grupo.imagem.src} alt={grupo.nome} />
   if (grupo.fotosMateriais.length) {
     const fotos = grupo.fotosMateriais

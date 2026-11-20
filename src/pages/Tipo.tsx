@@ -52,8 +52,8 @@ export function Tipo() {
 
       <header className="cartao flex flex-col gap-5 overflow-hidden p-4 sm:flex-row sm:items-center sm:p-5">
         <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-xl sm:w-48">
-          <ImagemGrupo grupo={grupo} />
-          <StatusIcone estado={grupo.estado} className="absolute left-2 top-2" />
+          <ImagemGrupo grupo={grupo} interativo />
+          <StatusIcone estado={grupo.estado} className="pointer-events-none absolute left-2 top-2" />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-start justify-between gap-3">

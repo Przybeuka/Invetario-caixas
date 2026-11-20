@@ -25,6 +25,8 @@ export interface Grupo {
   estado: EstadoCaixa
   conferidas: number
   imagem: Imagem | null
+  /** Arquivo .glb do modelo 3D, quando a cor/tamanho tem modelo. */
+  modelo3d: string | null
   fotosMateriais: string[]
 }
 
@@ -110,6 +112,7 @@ export function agrupar(caixas: CaixaResumo[], validadeDias: number): Grupo[] {
       estado: piorEstado(estados),
       conferidas: estados.filter((e) => e === 'ok').length,
       imagem: imagemDaCaixa(lista[0], true),
+      modelo3d: lista.map((c) => modelo3dDaCaixa(c.cor_nome, c.tamanho)).find(Boolean) ?? null,
       fotosMateriais: [...new Set(lista.flatMap((c) => c.fotos_materiais ?? []))].slice(0, 4),
     })
   }

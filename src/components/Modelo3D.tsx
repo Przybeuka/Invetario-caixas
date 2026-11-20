@@ -1,10 +1,10 @@
 import { Box, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-type Props = { src: string; alt: string; poster?: string | null }
+type Props = { src: string; alt: string; poster?: string | null; interativo?: boolean }
 
 /** Visualizador 3D interativo (arraste para girar). A biblioteca só é baixada quando o modelo é aberto. */
-export function Modelo3D({ src, alt, poster }: Props) {
+export function Modelo3D({ src, alt, poster, interativo = true }: Props) {
   const [pronto, setPronto] = useState(false)
   const [carregado, setCarregado] = useState(false)
   const [falhou, setFalhou] = useState(false)
@@ -31,14 +31,14 @@ export function Modelo3D({ src, alt, poster }: Props) {
 
   return (
     <div className="relative size-full">
-      {!carregado && poster && <img src={poster} alt="" className="absolute inset-0 size-full object-cover opacity-60" />}
+      {!carregado && poster && <img src={poster} alt="" className="absolute inset-0 size-full object-cover" />}
       {pronto && (
         <model-viewer
           src={src}
           alt={alt}
-          camera-controls
+          camera-controls={interativo || undefined}
           auto-rotate
-          auto-rotate-delay="2500"
+          auto-rotate-delay={interativo ? '2500' : '0'}
           rotation-per-second="18deg"
           touch-action="pan-y"
           interaction-prompt="none"
@@ -49,12 +49,12 @@ export function Modelo3D({ src, alt, poster }: Props) {
           camera-orbit="35deg 70deg auto"
           onLoad={() => setCarregado(true)}
           onError={() => setFalhou(true)}
-          style={{ width: '100%', height: '100%', background: 'transparent', outline: 'none' }}
+          style={{ width: '100%', height: '100%', background: 'transparent', outline: 'none', pointerEvents: interativo ? 'auto' : 'none' }}
         />
       )}
       {!carregado && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <LoaderCircle className="size-7 animate-spin text-zinc-500" />
+          {!poster && <LoaderCircle className="size-7 animate-spin text-zinc-500" />}
         </div>
       )}
     </div>
