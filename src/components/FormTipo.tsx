@@ -7,7 +7,7 @@ import { cn } from '../lib/util'
 import { Modal } from './Modal'
 import { Botao, Campo, Ponto, Segmentado } from './ui'
 
-/** Edita de uma vez todas as caixas de um tipo (nome, cor, tamanho e foto do modelo). */
+/** Edita de uma vez todas as caixas de um tipo. */
 export function FormTipo({ aberto, aoFechar, grupo }: { aberto: boolean; aoFechar: () => void; grupo: Grupo }) {
   return (
     <Modal

@@ -289,7 +289,7 @@ export function CaixaPagina() {
         <Galeria
           fotos={fotos}
           dono={{ caixa_id: caixa.id }}
-          podeEditar={podeEditar}
+          podeEditar={false}
           modelo={caixa.foto_modelo || caixa.cor_foto_modelo}
           alt={`Caixa ${caixa.numero} · ${caixa.nome}`}
         />
