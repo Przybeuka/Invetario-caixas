@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Barlow Condensed', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-zinc-100 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+  }
+  :root {
+    color-scheme: light;
+  }
+  :root.dark {
+    color-scheme: dark;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@utility rotulo {
+  @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400;
+}
+
+@utility campo {
+  @apply w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-base text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-300 dark:focus:ring-white/10;
+}
+
+@utility cartao {
+  @apply rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900;
+}
+
+dialog::backdrop {
+  background: rgb(9 9 11 / 0.55);
+  backdrop-filter: blur(2px);
+}
+
+/* ---------- Impressão (adesivos e lista de conferência) ---------- */
+
+.folha {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 10mm;
+  margin: 0 auto 8mm;
+  background: #fff;
+  color: #09090b;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.08);
+}
+
+.folha:not(.folha-fluida) {
+  height: 297mm;
+  overflow: hidden;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .nao-imprimir {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .area-impressao {
+    overflow: visible !important;
+  }
+  .previa-zoom {
+    zoom: 1 !important;
+  }
+  .folha {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+  }
+  .folha:not(.folha-fluida) {
+    height: 276mm;
+    break-after: page;
+    page-break-after: always;
+  }
+  .folha:not(.folha-fluida):last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .dark .folha {
+    color: #09090b;
+  }
+}
