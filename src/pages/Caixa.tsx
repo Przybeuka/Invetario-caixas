@@ -139,6 +139,7 @@ function LinhaConferencia({ c, ehAdmin }: { c: Conferencia; ehAdmin: boolean }) 
   const { confirmar } = useAvisos()
   const excluir = useAcao(() => excluirConferencia(c.id), 'Conferência excluída.')
   const faltas = c.itens.filter((i) => Number(i.quantidade_encontrada) < Number(i.quantidade_esperada))
+  const naoEncontrados = faltas.filter((i) => Number(i.quantidade_encontrada) === 0)
   const comObs = c.itens.filter((i) => i.observacao)
   const temDetalhes = faltas.length > 0 || comObs.length > 0 || !!c.observacao
 
@@ -152,7 +153,17 @@ function LinhaConferencia({ c, ehAdmin }: { c: Conferencia; ehAdmin: boolean }) 
             {c.conferido_por_nome && <span className="font-normal text-zinc-500"> · {c.conferido_por_nome}</span>}
           </div>
           <div className="text-xs text-zinc-500">
-            {c.status === 'ok' ? 'Tudo certo' : faltas.length ? plural(faltas.length, 'item em falta', 'itens em falta') : 'Pendência registrada'}
+            {c.status === 'ok'
+              ? 'Tudo certo'
+              : faltas.length
+                ? [
+                    naoEncontrados.length && plural(naoEncontrados.length, 'não encontrado', 'não encontrados'),
+                    faltas.length - naoEncontrados.length &&
+                      plural(faltas.length - naoEncontrados.length, 'incompleto', 'incompletos'),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : 'Pendência registrada'}
             {' · '}
             {plural(c.itens.length, 'item conferido', 'itens conferidos')}
           </div>
@@ -188,8 +199,12 @@ function LinhaConferencia({ c, ehAdmin }: { c: Conferencia; ehAdmin: boolean }) 
             .filter((i) => Number(i.quantidade_encontrada) < Number(i.quantidade_esperada) || i.observacao)
             .map((i) => (
               <p key={i.id}>
-                <span className="font-semibold">{i.material_nome}</span>: {formatarQtd(i.quantidade_encontrada)} de{' '}
-                {formatarQtd(i.quantidade_esperada)}
+                <span className="font-semibold">{i.material_nome}</span>:{' '}
+                {Number(i.quantidade_encontrada) === 0
+                  ? 'não encontrado'
+                  : Number(i.quantidade_encontrada) < Number(i.quantidade_esperada)
+                    ? `incompleto (${formatarQtd(i.quantidade_encontrada)} de ${formatarQtd(i.quantidade_esperada)})`
+                    : `${formatarQtd(i.quantidade_encontrada)} de ${formatarQtd(i.quantidade_esperada)}`}
                 {i.observacao && <span className="text-zinc-500"> — {i.observacao}</span>}
               </p>
             ))}

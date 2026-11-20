@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, CheckCheck, Minus, Undo2 } from 'lucide-react'
+import { ArrowLeft, Check, CheckCheck, Minus, Undo2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Miniatura } from '../components/Imagens'
@@ -8,7 +8,17 @@ import { registrarConferencia, useAcao, useCaixas, useCores, useItens, type Item
 import type { CaixaItem } from '../lib/tipos'
 import { cn, formatarQtd } from '../lib/util'
 
-type Marca = { estado: 'pendente' } | { estado: 'ok' } | { estado: 'falta'; encontrada: number; obs: string }
+type Marca =
+  | { estado: 'pendente' }
+  | { estado: 'ok' }
+  | { estado: 'incompleto'; encontrada: number; obs: string }
+  | { estado: 'nao'; obs: string }
+
+const ROTULO: Record<Exclude<Marca['estado'], 'pendente'>, string> = {
+  ok: 'Completo',
+  incompleto: 'Incompleto',
+  nao: 'Não encontrado',
+}
 
 function LinhaConferir({
   item,
@@ -23,50 +33,39 @@ function LinhaConferir({
 }) {
   const esperada = Number(item.quantidade)
   const capa = [...(item.material.fotos ?? [])].sort((a, b) => a.ordem - b.ordem)[0]?.caminho_miniatura
+  // Só faz sentido "incompleto" quando há mais de uma unidade esperada.
+  const podeIncompleto = esperada > 1
+  const botao = 'inline-flex h-12 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-bold uppercase tracking-wider transition'
   return (
     <li
       className={cn(
         'cartao flex flex-col gap-3 p-3 transition',
         marca.estado === 'ok' && 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/30',
-        marca.estado === 'falta' && 'border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/30',
+        marca.estado === 'incompleto' && 'border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30',
+        marca.estado === 'nao' && 'border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/30',
       )}
     >
       <div className="flex items-center gap-3">
         <Miniatura caminho={capa} modelo={modelo} className="size-14" />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-semibold">{item.material.nome}</div>
+          <div className="text-[15px] font-semibold leading-snug">{item.material.nome}</div>
           <div className="text-sm text-zinc-500">
             Esperado:{' '}
             <span className="font-display text-lg font-bold text-zinc-900 dark:text-zinc-100">{formatarQtd(esperada)}</span>{' '}
             {item.material.unidade}
           </div>
         </div>
-        {marca.estado === 'pendente' ? (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => aoMarcar({ estado: 'falta', encontrada: Math.max(0, esperada - 1), obs: '' })}
-              className="inline-flex h-12 items-center gap-1.5 rounded-xl border border-red-300 bg-white px-3 text-xs font-bold uppercase tracking-wider text-red-700 transition hover:bg-red-50 dark:border-red-900 dark:bg-zinc-900 dark:text-red-300"
-            >
-              <Minus className="size-4" /> Falta
-            </button>
-            <button
-              type="button"
-              onClick={() => aoMarcar({ estado: 'ok' })}
-              className="inline-flex h-12 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-emerald-700"
-            >
-              <Check className="size-4" strokeWidth={3} /> Completo
-            </button>
-          </div>
-        ) : (
+        {marca.estado !== 'pendente' && (
           <div className="flex items-center gap-2">
             <span
               className={cn(
                 'rotulo',
-                marca.estado === 'ok' ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300',
+                marca.estado === 'ok' && 'text-emerald-700 dark:text-emerald-300',
+                marca.estado === 'incompleto' && 'text-amber-700 dark:text-amber-300',
+                marca.estado === 'nao' && 'text-red-700 dark:text-red-300',
               )}
             >
-              {marca.estado === 'ok' ? 'Completo' : 'Em falta'}
+              {ROTULO[marca.estado]}
             </span>
             <button
               type="button"
@@ -79,19 +78,62 @@ function LinhaConferir({
           </div>
         )}
       </div>
-      {marca.estado === 'falta' && (
-        <div className="flex flex-col gap-2 border-t border-red-200 pt-3 sm:flex-row sm:items-center dark:border-red-900/60">
+      {marca.estado === 'pendente' && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => aoMarcar({ estado: 'ok' })}
+            className={cn(botao, 'bg-emerald-600 text-white hover:bg-emerald-700')}
+          >
+            <Check className="size-4" strokeWidth={3} /> Completo
+          </button>
+          {podeIncompleto && (
+            <button
+              type="button"
+              onClick={() => aoMarcar({ estado: 'incompleto', encontrada: esperada - 1, obs: '' })}
+              className={cn(
+                botao,
+                'border border-amber-300 bg-white text-amber-700 hover:bg-amber-50 dark:border-amber-900 dark:bg-zinc-900 dark:text-amber-300',
+              )}
+            >
+              <Minus className="size-4" /> Incompleto
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => aoMarcar({ estado: 'nao', obs: '' })}
+            className={cn(
+              botao,
+              'border border-red-300 bg-white text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-zinc-900 dark:text-red-300',
+            )}
+          >
+            <X className="size-4" strokeWidth={3} /> Não encontrado
+          </button>
+        </div>
+      )}
+      {marca.estado === 'incompleto' && (
+        <div className="flex flex-col gap-2 border-t border-amber-200 pt-3 sm:flex-row sm:items-center dark:border-amber-900/60">
           <div className="flex items-center gap-3">
             <span className="rotulo">Encontrado</span>
             <PassoQuantidade
               valor={marca.encontrada}
-              min={0}
+              min={1}
               max={esperada}
               aoMudar={(v) => aoMarcar(v >= esperada ? { estado: 'ok' } : { ...marca, encontrada: v })}
             />
           </div>
           <input
             className="campo h-11 flex-1 py-2"
+            placeholder="O que aconteceu? (opcional)"
+            value={marca.obs}
+            onChange={(e) => aoMarcar({ ...marca, obs: e.target.value })}
+          />
+        </div>
+      )}
+      {marca.estado === 'nao' && (
+        <div className="border-t border-red-200 pt-3 dark:border-red-900/60">
+          <input
+            className="campo h-11 w-full py-2"
             placeholder="O que aconteceu? (opcional)"
             value={marca.obs}
             onChange={(e) => aoMarcar({ ...marca, obs: e.target.value })}
@@ -116,7 +158,10 @@ export function Conferir() {
 
   const marcaDe = (itemId: string): Marca => marcas[itemId] ?? { estado: 'pendente' }
   const verificados = itens.filter((i) => marcaDe(i.id).estado !== 'pendente').length
-  const faltas = itens.filter((i) => marcaDe(i.id).estado === 'falta').length
+  const faltas = itens.filter((i) => {
+    const e = marcaDe(i.id).estado
+    return e === 'incompleto' || e === 'nao'
+  }).length
   const completo = verificados === itens.length
 
   const payload = useMemo<ItemConferido[]>(
@@ -128,8 +173,8 @@ export function Conferir() {
           material_id: i.material_id,
           material_nome: i.material.nome,
           quantidade_esperada: esperada,
-          quantidade_encontrada: m.estado === 'falta' ? m.encontrada : esperada,
-          observacao: m.estado === 'falta' ? m.obs.trim() || null : null,
+          quantidade_encontrada: m.estado === 'incompleto' ? m.encontrada : m.estado === 'nao' ? 0 : esperada,
+          observacao: m.estado === 'incompleto' || m.estado === 'nao' ? m.obs.trim() || null : null,
         }
       }),
     [itens, marcas],
