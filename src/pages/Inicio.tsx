@@ -72,7 +72,7 @@ function CartaoLista({ grupo }: { grupo: Grupo }) {
     >
       <span aria-hidden className="w-1.5 shrink-0" style={{ background: corDoGrupo(grupo) }} />
       <div className="grid flex-1 grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 p-3 sm:grid-cols-[auto_1fr_auto] sm:gap-x-6 sm:p-4">
-        <div className="relative aspect-[4/3] w-28 overflow-hidden rounded-xl bg-zinc-100 sm:row-span-1 sm:w-44 dark:bg-zinc-800">
+        <div className="relative aspect-square w-24 overflow-hidden rounded-xl bg-zinc-100 sm:row-span-1 sm:w-32 dark:bg-zinc-800">
           <ImagemGrupo grupo={grupo} />
           <StatusIcone estado={grupo.estado} className="absolute left-2 top-2" />
         </div>
@@ -108,7 +108,7 @@ function CartaoGrade({ grupo }: { grupo: Grupo }) {
       to={linkDoGrupo(grupo)}
       className="group cartao flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+      <div className="relative aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-800">
         <ImagemGrupo grupo={grupo} />
         <StatusIcone estado={grupo.estado} className="absolute left-3 top-3" />
         <Contador valor={grupo.caixas.length} className="absolute right-3 top-3" />

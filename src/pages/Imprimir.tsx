@@ -90,7 +90,7 @@ function ImagemCaixa({ caixa, className }: { caixa: CaixaResumo; className?: str
         <img
           src={img.grande}
           alt=""
-          className={cn('size-full', img.origem === 'modelo' ? 'object-contain p-[2mm]' : 'object-cover')}
+          className={cn('size-full', img.origem === 'modelo' ? 'object-contain' : 'object-cover')}
         />
       ) : (
         <Package className="size-1/2 text-zinc-300" strokeWidth={1.25} />
@@ -136,7 +136,7 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
           </dl>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-[2mm]">
-          <ImagemCaixa caixa={caixa} className="h-[34mm] w-[46mm]" />
+          <ImagemCaixa caixa={caixa} className="size-[36mm]" />
           <div className="flex items-center gap-[2mm] text-right text-[6.5pt] leading-tight text-zinc-500">
             Lista sempre
             <br />
@@ -236,47 +236,62 @@ const ADESIVO = { largura: 130, altura: 250, margem: 5 }
 const ALTURA_GRADE = 165
 
 function densidade(n: number) {
-  const colunas = n <= 10 ? 2 : n <= 21 ? 3 : 4
-  const linhas = Math.max(1, Math.ceil(n / colunas))
   const gap = 2.5
-  const largura = (ADESIVO.largura - ADESIVO.margem * 2 - gap * (colunas - 1)) / colunas
-  const altura = Math.min(largura * 0.8, (ALTURA_GRADE - gap * (linhas - 1)) / linhas)
+  const util = ADESIVO.largura - ADESIVO.margem * 2
+  const legenda = (c: number) => (c <= 2 ? 5.5 : c === 3 ? 4.8 : c === 4 ? 4.2 : 3.8)
+  let colunas = 2
+  for (; colunas < 6; colunas++) {
+    const lado = (util - gap * (colunas - 1)) / colunas
+    const linhas = Math.ceil(Math.max(1, n) / colunas)
+    if (linhas * (lado + legenda(colunas)) + gap * (linhas - 1) <= ALTURA_GRADE) break
+  }
+  const lado = (util - gap * (colunas - 1)) / colunas
   return {
     colunas,
     gap,
-    altura,
-    nome: colunas === 2 ? '8pt' : colunas === 3 ? '6.5pt' : '5.5pt',
-    qtd: colunas === 2 ? '11pt' : colunas === 3 ? '9pt' : '7.5pt',
-    limite: 32,
+    lado,
+    legenda: legenda(colunas),
+    nome: colunas <= 2 ? '8.5pt' : colunas === 3 ? '7.2pt' : colunas === 4 ? '6.2pt' : '5.6pt',
+    qtd: colunas <= 2 ? '11pt' : colunas === 3 ? '9.5pt' : colunas === 4 ? '8pt' : '7pt',
+    limite: colunas * Math.floor((ALTURA_GRADE + gap) / (lado + legenda(colunas) + gap)),
   }
+}
+
+/** Encolhe a legenda (até 70% do tamanho) para o nome caber numa linha; o resto vira "…". */
+function fonteLegenda(nome: string, d: ReturnType<typeof densidade>): string {
+  const base = Number.parseFloat(d.nome)
+  const cabe = d.lado / (nome.length * 0.6 * 0.3528)
+  return `${Math.max(base * 0.7, Math.min(base, cabe)).toFixed(2)}pt`
 }
 
 function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof densidade> }) {
   const src = fotoDoItem(item)
   return (
-    <li
-      className="relative overflow-hidden rounded-[2mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
-      style={{ height: `${d.altura}mm` }}
-    >
-      {src ? (
-        <img src={src} alt="" className="absolute inset-0 size-full object-cover" />
-      ) : (
-        <Package className="absolute left-1/2 top-[38%] size-[35%] -translate-x-1/2 -translate-y-1/2 text-zinc-300" strokeWidth={1.25} />
-      )}
-      <span
-        className="absolute right-[1.5mm] top-[1.5mm] flex items-baseline gap-[0.6mm] rounded-[1.2mm] border-[0.45mm] border-black bg-white px-[1.6mm] py-[0.3mm] font-display font-bold leading-none text-black tabular-nums"
-        style={{ fontSize: d.qtd }}
+    <li className="flex min-w-0 flex-col">
+      <div
+        className="relative overflow-hidden rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
+        style={{ width: `${d.lado}mm`, height: `${d.lado}mm` }}
       >
-        {formatarQtd(item.quantidade)}
-        {item.material.unidade !== 'un' && (
-          <span className="text-[0.55em] font-semibold uppercase">{item.material.unidade}</span>
+        {src ? (
+          <img src={src} alt="" className="absolute inset-0 size-full object-cover" />
+        ) : (
+          <Package className="absolute left-1/2 top-1/2 size-[35%] -translate-x-1/2 -translate-y-1/2 text-zinc-300" strokeWidth={1.25} />
         )}
-      </span>
+        <span
+          className="absolute right-[1.2mm] top-[1.2mm] flex items-baseline gap-[0.6mm] rounded-[1.2mm] border-[0.45mm] border-black bg-white px-[1.4mm] py-[0.3mm] font-display font-bold leading-none text-black tabular-nums"
+          style={{ fontSize: d.qtd }}
+        >
+          {formatarQtd(item.quantidade)}
+          {item.material.unidade !== 'un' && (
+            <span className="text-[0.55em] font-semibold uppercase">{item.material.unidade}</span>
+          )}
+        </span>
+      </div>
       <span
-        className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-[1.8mm] pb-[1.4mm] pt-[5mm] font-bold uppercase leading-[1.12] text-white"
-        style={{ fontSize: d.nome }}
+        className="flex items-center truncate font-bold uppercase leading-none"
+        style={{ fontSize: fonteLegenda(item.material.nome, d), height: `${d.legenda}mm` }}
       >
-        <span className="line-clamp-3">{item.material.nome}</span>
+        <span className="truncate">{item.material.nome}</span>
       </span>
     </li>
   )
@@ -284,7 +299,7 @@ function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof 
 
 function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemResumido[] }) {
   const hex = caixa.cor_hex ?? '#71717a'
-  const d = densidade(Math.min(itens.length, 32))
+  const d = densidade(itens.length)
   const visiveis = itens.slice(0, d.limite)
   const sobra = itens.length - visiveis.length
   const v = volumeM3(caixa)
@@ -313,7 +328,7 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
               {[caixa.cor_nome, caixa.tamanho ? ROTULO_TAMANHO[caixa.tamanho] : null].filter(Boolean).join(' · ')}
             </span>
           </div>
-          <ImagemCaixa caixa={caixa} className="h-[40mm] w-[54mm]" />
+          <ImagemCaixa caixa={caixa} className="size-[44mm]" />
         </div>
 
         <div className="mt-[3mm] flex shrink-0 items-stretch gap-[3mm] rounded-[2mm] bg-zinc-100 p-[2.5mm]">

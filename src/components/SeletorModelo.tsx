@@ -24,7 +24,7 @@ export function SeletorModelo({
         type="button"
         onClick={() => aoMudar(null)}
         className={cn(
-          'flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed p-1 text-center text-[11px] font-semibold uppercase tracking-wider transition',
+          'flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed p-1 text-center text-[11px] font-semibold uppercase tracking-wider transition',
           valor === null
             ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900'
             : 'border-zinc-300 text-zinc-500 hover:border-zinc-500 dark:border-zinc-700',
@@ -39,7 +39,7 @@ export function SeletorModelo({
           title={m.rotulo}
           onClick={() => aoMudar(m.id)}
           className={cn(
-            'relative aspect-[4/3] overflow-hidden rounded-xl ring-2 ring-offset-2 transition ring-offset-white dark:ring-offset-zinc-900',
+            'relative aspect-square overflow-hidden rounded-xl ring-2 ring-offset-2 transition ring-offset-white dark:ring-offset-zinc-900',
             valor === m.id ? 'ring-zinc-900 dark:ring-white' : 'ring-transparent hover:ring-zinc-300',
           )}
         >

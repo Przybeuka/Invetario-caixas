@@ -156,7 +156,7 @@ export function Galeria({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
+      <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
         {srcPrincipal ? (
           <button type="button" className="size-full" onClick={() => setAmpliada(true)} aria-label="Ampliar foto">
             <Imagem src={srcPrincipal} alt={alt} />

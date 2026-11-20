@@ -51,7 +51,7 @@ export function Tipo() {
       </Link>
 
       <header className="cartao flex flex-col gap-5 overflow-hidden p-4 sm:flex-row sm:items-center sm:p-5">
-        <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl sm:w-56">
+        <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-xl sm:w-48">
           <ImagemGrupo grupo={grupo} />
           <StatusIcone estado={grupo.estado} className="absolute left-2 top-2" />
         </div>
