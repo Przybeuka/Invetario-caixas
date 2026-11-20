@@ -238,7 +238,9 @@ const ALTURA_GRADE = 165
 function densidade(n: number) {
   const gap = 2.5
   const util = ADESIVO.largura - ADESIVO.margem * 2
-  const legenda = (c: number) => (c <= 2 ? 5.5 : c === 3 ? 4.8 : c === 4 ? 4.2 : 3.8)
+  const fonte = (c: number) => (c <= 2 ? 10.5 : c === 3 ? 8.8 : c === 4 ? 7.4 : 6.4)
+  // até 3 linhas de nome, mais um respiro acima
+  const legenda = (c: number) => fonte(c) * 0.3528 * 1.12 * 3 + 1.4
   let colunas = 2
   for (; colunas < 6; colunas++) {
     const lado = (util - gap * (colunas - 1)) / colunas
@@ -251,17 +253,10 @@ function densidade(n: number) {
     gap,
     lado,
     legenda: legenda(colunas),
-    nome: colunas <= 2 ? '8.5pt' : colunas === 3 ? '7.2pt' : colunas === 4 ? '6.2pt' : '5.6pt',
+    nome: `${fonte(colunas)}pt`,
     qtd: colunas <= 2 ? '11pt' : colunas === 3 ? '9.5pt' : colunas === 4 ? '8pt' : '7pt',
     limite: colunas * Math.floor((ALTURA_GRADE + gap) / (lado + legenda(colunas) + gap)),
   }
-}
-
-/** Encolhe a legenda (até 70% do tamanho) para o nome caber numa linha; o resto vira "…". */
-function fonteLegenda(nome: string, d: ReturnType<typeof densidade>): string {
-  const base = Number.parseFloat(d.nome)
-  const cabe = d.lado / (nome.length * 0.6 * 0.3528)
-  return `${Math.max(base * 0.7, Math.min(base, cabe)).toFixed(2)}pt`
 }
 
 function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof densidade> }) {
@@ -288,10 +283,10 @@ function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof 
         </span>
       </div>
       <span
-        className="flex items-center truncate font-bold uppercase leading-none"
-        style={{ fontSize: fonteLegenda(item.material.nome, d), height: `${d.legenda}mm` }}
+        className="line-clamp-3 pt-[1.2mm] font-bold uppercase leading-[1.12]"
+        style={{ fontSize: d.nome, height: `${d.legenda}mm` }}
       >
-        <span className="truncate">{item.material.nome}</span>
+        {item.material.nome}
       </span>
     </li>
   )
@@ -306,7 +301,6 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
   const medidas = [
     { rotulo: 'Dimensões (C × L × Alt.)', valor: dimensoes(caixa), largo: true },
     { rotulo: 'Volume', valor: v ? `${formatarDecimal(v, 4)} m³` : null, largo: false },
-    { rotulo: 'Peso', valor: caixa.peso_kg ? `${formatarDecimal(caixa.peso_kg)} kg` : null, largo: false },
   ].filter((m): m is { rotulo: string; valor: string; largo: boolean } => !!m.valor)
 
   return (
@@ -332,20 +326,29 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
         </div>
 
         <div className="mt-[3mm] flex shrink-0 items-stretch gap-[3mm] rounded-[2mm] bg-zinc-100 p-[2.5mm]">
-          <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-[3mm] gap-y-[1.5mm]">
+          <dl className="flex min-w-0 flex-1 flex-col justify-center gap-[1.8mm]">
             {medidas.length ? (
               medidas.map((m) => (
-                <div key={m.rotulo} className={cn('min-w-0', m.largo && 'col-span-2')}>
+                <div key={m.rotulo} className="min-w-0">
                   <dt className="text-[6pt] font-semibold uppercase tracking-[0.14em] text-zinc-500">{m.rotulo}</dt>
-                  <dd className="font-display text-[13pt] font-bold uppercase leading-none tabular-nums">{m.valor}</dd>
+                  <dd className="font-display text-[12pt] font-bold uppercase leading-none tabular-nums">{m.valor}</dd>
                 </div>
               ))
             ) : (
-              <div className="col-span-2 self-center text-[8pt] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              <div className="text-[8pt] font-semibold uppercase tracking-[0.12em] text-zinc-500">
                 {itens.length} {itens.length === 1 ? 'material' : 'materiais'}
               </div>
             )}
           </dl>
+          {caixa.peso_kg ? (
+            <div className="flex shrink-0 flex-col justify-center border-l-[0.3mm] border-zinc-300 px-[3mm]">
+              <span className="text-[9pt] font-bold uppercase tracking-[0.2em] text-zinc-600">Peso</span>
+              <span className="font-display text-[30pt] font-bold uppercase leading-[0.9] tabular-nums">
+                {formatarDecimal(caixa.peso_kg)}
+                <span className="ml-[1mm] text-[16pt]">kg</span>
+              </span>
+            </div>
+          ) : null}
           <div className="flex shrink-0 flex-col items-center justify-center gap-[0.8mm]">
             <CodigoQR caixa={caixa} className="w-[15mm]" />
             <span className="text-[5pt] font-semibold uppercase tracking-[0.12em] text-zinc-500">Ver conteúdo</span>
