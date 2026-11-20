@@ -396,7 +396,7 @@ export function CaixaPagina() {
         <ArrowLeft className="size-4" /> {mesmoTipo.length > 1 ? caixa.nome : 'Caixas'}
       </Link>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <Galeria
           fotos={fotos}
           dono={{ caixa_id: caixa.id }}

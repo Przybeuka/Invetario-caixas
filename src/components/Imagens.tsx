@@ -291,7 +291,7 @@ export function Galeria({
                 icone={<Images className="size-4" />}
                 onClick={() => setEscolhendo(true)}
                 disabled={!!enviando}
-                className={ordenadas.length > 1 ? 'h-16' : ''}
+                className={ordenadas.length > 1 || (modelo3d && ordenadas.length) ? 'h-16' : ''}
               >
                 Já existente
               </Botao>
