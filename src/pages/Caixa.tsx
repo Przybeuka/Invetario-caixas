@@ -47,7 +47,7 @@ import {
   useItens,
   useValidade,
 } from '../lib/api'
-import { estadoDaCaixa } from '../lib/grupos'
+import { estadoDaCaixa, modelo3dDaCaixa, modeloPorTamanho } from '../lib/grupos'
 import type { CaixaItem, CaixaResumo, Conferencia } from '../lib/tipos'
 import {
   cn,
@@ -309,7 +309,8 @@ export function CaixaPagina() {
           fotos={fotos}
           dono={{ caixa_id: caixa.id }}
           podeEditar={podeEditar}
-          modelo={caixa.foto_modelo || caixa.cor_foto_modelo}
+          modelo={caixa.foto_modelo || modeloPorTamanho(caixa.cor_nome, caixa.tamanho) || caixa.cor_foto_modelo}
+          modelo3d={modelo3dDaCaixa(caixa.cor_nome, caixa.tamanho)}
           alt={`Caixa ${caixa.numero} · ${caixa.nome}`}
         />
 

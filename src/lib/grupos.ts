@@ -46,6 +46,14 @@ export function modeloPorTamanho(cor: string | null, tamanho: string | null): st
   return (tamanho && m[tamanho]) || null
 }
 
+/** Arquivo .glb do modelo 3D da caixa (cor + tamanho), quando existe. */
+export function modelo3dDaCaixa(cor: string | null, tamanho: string | null): string | null {
+  if (!cor || !tamanho) return null
+  const c = normalizar(cor)
+  const ok = MODELO_POR_COR[c]?.[tamanho]
+  return ok ? `/modelos3d/${c}-${tamanho}.glb` : null
+}
+
 export function imagemDaCaixa(c: CaixaResumo, soModelo = false): Imagem | null {
   const miniatura = soModelo ? undefined : c.fotos_caixa?.[0]
   if (miniatura) {

@@ -9,6 +9,7 @@ import type { Foto } from '../lib/tipos'
 import { cn, mensagemErro } from '../lib/util'
 import { useAvisos } from './avisos'
 import { Modal } from './Modal'
+import { Modelo3D } from './Modelo3D'
 import { SeletorFotoExistente } from './SeletorFotoExistente'
 import { Botao } from './ui'
 
@@ -91,12 +92,14 @@ export function Galeria({
   dono,
   podeEditar,
   modelo,
+  modelo3d,
   alt,
 }: {
   fotos: Foto[]
   dono: DonoFoto
   podeEditar: boolean
   modelo?: string | null
+  modelo3d?: string | null
   alt: string
 }) {
   const ordenadas = useMemo(
@@ -186,7 +189,9 @@ export function Galeria({
   return (
     <div className="flex flex-col gap-3">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
-        {srcPrincipal ? (
+        {!atual && modelo3d ? (
+          <Modelo3D src={modelo3d} alt={alt} poster={modelo ? srcModelo(modelo, true) : null} />
+        ) : srcPrincipal ? (
           <button type="button" className="size-full" onClick={() => setAmpliada(true)} aria-label="Ampliar foto">
             <Imagem src={srcPrincipal} alt={alt} />
           </button>
@@ -195,7 +200,7 @@ export function Galeria({
         )}
         {!atual && modelo && (
           <span className="rotulo absolute bottom-3 left-3 rounded-lg bg-white/90 px-2 py-1 text-zinc-700 backdrop-blur dark:bg-zinc-900/80 dark:text-zinc-200">
-            Foto do modelo
+            {modelo3d ? 'Modelo 3D · arraste para girar' : 'Foto do modelo'}
           </span>
         )}
         {atual && podeEditar && (
