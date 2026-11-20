@@ -1,5 +1,5 @@
 import { ClipboardCheck, Download, Package, Printer, Sticker, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { QR } from '../components/QR'
 import { Botao, Campo, Carregando, Vazio } from '../components/ui'
@@ -96,17 +96,19 @@ async function gerarPdfFichas(area: HTMLElement, nomeArquivo: string) {
 }
 
 function useEscala(larguraMm: number) {
-  const ref = useRef<HTMLDivElement>(null)
+  // ref por callback: a prévia só existe depois do carregamento, então o observador precisa esperar o elemento aparecer.
+  const [el, ref] = useState<HTMLDivElement | null>(null)
   const [escala, setEscala] = useState(1)
   useEffect(() => {
-    const el = ref.current
     if (!el) return
     const larguraPx = (larguraMm / 25.4) * 96
-    const observador = new ResizeObserver(([e]) => setEscala(Math.min(1, e.contentRect.width / larguraPx)))
+    const medir = () => setEscala(Math.min(1, el.clientWidth / larguraPx))
+    medir()
+    const observador = new ResizeObserver(medir)
     observador.observe(el)
     return () => observador.disconnect()
-  }, [larguraMm])
-  return { ref, escala }
+  }, [el, larguraMm])
+  return { ref, el, escala }
 }
 
 // ---------------------------------------------------------------------------
@@ -494,18 +496,18 @@ export function Imprimir() {
     [caixas, caixaParam, tipoParam, corParam],
   )
   const caixaUnica = caixaParam ? caixas.find((c) => c.id === caixaParam) : undefined
-  const { ref, escala } = useEscala(documento === 'adesivo' ? ADESIVO.largura : 210)
+  const { ref, el: areaEl, escala } = useEscala(documento === 'adesivo' ? ADESIVO.largura : 210)
   const [gerando, setGerando] = useState(false)
   const [erroPdf, setErroPdf] = useState<string | null>(null)
 
   async function salvarPdf() {
-    if (!ref.current) return
+    if (!areaEl) return
     setGerando(true)
     setErroPdf(null)
     try {
       const sufixo = caixaUnica ? `caixa-${caixaUnica.numero}` : tipoParam ? normalizar(tipoParam).replace(/\s+/g, '-') : 'caixas'
-      if (documento === 'adesivo') await gerarPdfAdesivos(ref.current, `adesivos-${sufixo}.pdf`)
-      else await gerarPdfFichas(ref.current, `relatorio-conferencia-${sufixo}.pdf`)
+      if (documento === 'adesivo') await gerarPdfAdesivos(areaEl, `adesivos-${sufixo}.pdf`)
+      else await gerarPdfFichas(areaEl, `relatorio-conferencia-${sufixo}.pdf`)
     } catch {
       setErroPdf('Não foi possível gerar o PDF. Tente novamente em instantes.')
     } finally {
