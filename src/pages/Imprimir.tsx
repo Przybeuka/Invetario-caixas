@@ -1,4 +1,4 @@
-import { ClipboardCheck, Package, Printer, Sticker, X } from 'lucide-react'
+import { ClipboardCheck, Download, Package, Printer, Sticker, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { QR } from '../components/QR'
@@ -27,6 +27,31 @@ const DOCUMENTOS: { valor: Documento; titulo: string; texto: string; icone: type
     icone: Sticker,
   },
 ]
+
+/** Gera um PDF com uma página de 130 × 250 mm por adesivo (tamanho exato, sem A4). */
+async function gerarPdfAdesivos(area: HTMLElement, nomeArquivo: string) {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas-pro'), import('jspdf')])
+  const paginas = Array.from(area.querySelectorAll<HTMLElement>('.adesivo-pagina'))
+  if (!paginas.length) return
+  const pdf = new jsPDF({ unit: 'mm', format: [ADESIVO.largura, ADESIVO.altura], orientation: 'portrait', compress: true })
+  for (let i = 0; i < paginas.length; i++) {
+    const canvas = await html2canvas(paginas[i], {
+      scale: 4,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      onclone: (doc) => {
+        doc.querySelectorAll<HTMLElement>('.previa-zoom').forEach((e) => (e.style.zoom = '1'))
+        doc.querySelectorAll<HTMLElement>('.adesivo-pagina').forEach((e) => {
+          e.style.margin = '0'
+          e.style.boxShadow = 'none'
+        })
+      },
+    })
+    if (i > 0) pdf.addPage([ADESIVO.largura, ADESIVO.altura], 'portrait')
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ADESIVO.largura, ADESIVO.altura, undefined, 'FAST')
+  }
+  pdf.save(nomeArquivo)
+}
 
 /** Reduz a prévia para caber na tela sem afetar a impressão. */
 function useEscala(larguraMm: number) {
@@ -429,6 +454,22 @@ export function Imprimir() {
   )
   const caixaUnica = caixaParam ? caixas.find((c) => c.id === caixaParam) : undefined
   const { ref, escala } = useEscala(documento === 'adesivo' ? ADESIVO.largura : 210)
+  const [gerando, setGerando] = useState(false)
+  const [erroPdf, setErroPdf] = useState<string | null>(null)
+
+  async function salvarPdf() {
+    if (!ref.current) return
+    setGerando(true)
+    setErroPdf(null)
+    try {
+      const base = caixaUnica ? `adesivo-caixa-${caixaUnica.numero}` : tipoParam ? `adesivos-${normalizar(tipoParam).replace(/\s+/g, '-')}` : 'adesivos-caixas'
+      await gerarPdfAdesivos(ref.current, `${base}.pdf`)
+    } catch {
+      setErroPdf('Não foi possível gerar o PDF. Use Imprimir e escolha “Salvar em Arquivos”.')
+    } finally {
+      setGerando(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -440,18 +481,34 @@ export function Imprimir() {
           <div>
             <h1 className="font-display text-4xl font-bold">Imprimir</h1>
             <p className="text-sm text-zinc-500">
-              No iPad: toque em Imprimir / PDF e, na tela de impressão, use “Salvar em Arquivos”.
+              {documento === 'adesivo'
+                ? 'Salvar PDF gera um arquivo com uma página de 13 × 25 cm por adesivo.'
+                : 'No iPad: toque em Imprimir e, na tela de impressão, use “Salvar em Arquivos”.'}
             </p>
+            {erroPdf && <p className="mt-1 text-sm font-semibold text-red-600">{erroPdf}</p>}
           </div>
-          <Botao
-            variante="primario"
-            tamanho="lg"
-            icone={<Printer className="size-5" />}
-            disabled={!selecionadas.length}
-            onClick={() => window.print()}
-          >
-            Imprimir / PDF
-          </Botao>
+          <div className="flex flex-wrap gap-2">
+            {documento === 'adesivo' && (
+              <Botao
+                variante="primario"
+                tamanho="lg"
+                icone={<Download className="size-5" />}
+                disabled={!selecionadas.length || gerando}
+                onClick={salvarPdf}
+              >
+                {gerando ? 'Gerando PDF…' : 'Salvar PDF 13 × 25 cm'}
+              </Botao>
+            )}
+            <Botao
+              variante={documento === 'adesivo' ? 'secundario' : 'primario'}
+              tamanho="lg"
+              icone={<Printer className="size-5" />}
+              disabled={!selecionadas.length}
+              onClick={() => window.print()}
+            >
+              Imprimir
+            </Botao>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
