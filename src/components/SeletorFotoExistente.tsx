@@ -1,10 +1,10 @@
-import { Check, Images } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useFotosExistentes, type FotoExistente } from "../lib/api";
-import { urlFoto } from "../lib/supabase";
-import { cn } from "../lib/util";
-import { Modal } from "./Modal";
-import { Botao, CampoBusca, Carregando, ErroCarga } from "./ui";
+import { Check, Images } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useFotosExistentes, type FotoExistente } from '../lib/api'
+import { urlFoto } from '../lib/supabase'
+import { cn } from '../lib/util'
+import { Modal } from './Modal'
+import { Botao, CampoBusca, Carregando, ErroCarga } from './ui'
 
 /** Janela para escolher fotos que já existem no sistema (de qualquer caixa ou material). */
 export function SeletorFotoExistente({
@@ -13,74 +13,59 @@ export function SeletorFotoExistente({
   aoConfirmar,
   jaUsadas = [],
 }: {
-  aberto: boolean;
-  aoFechar: () => void;
-  aoConfirmar: (fotos: FotoExistente[]) => void | Promise<void>;
+  aberto: boolean
+  aoFechar: () => void
+  aoConfirmar: (fotos: FotoExistente[]) => void | Promise<void>
   /** Caminhos que o destino já tem (não aparecem de novo). */
-  jaUsadas?: string[];
+  jaUsadas?: string[]
 }) {
-  const { data, isLoading, error } = useFotosExistentes(aberto);
-  const [busca, setBusca] = useState("");
-  const [escolhidas, setEscolhidas] = useState<Set<string>>(new Set());
-  const [salvando, setSalvando] = useState(false);
+  const { data, isLoading, error } = useFotosExistentes(aberto)
+  const [busca, setBusca] = useState('')
+  const [escolhidas, setEscolhidas] = useState<Set<string>>(new Set())
+  const [salvando, setSalvando] = useState(false)
 
   const lista = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    const usadas = new Set(jaUsadas);
-    return (data ?? []).filter(
-      (f) =>
-        !usadas.has(f.caminho) &&
-        (!termo || f.rotulo.toLowerCase().includes(termo)),
-    );
-  }, [data, busca, jaUsadas]);
+    const termo = busca.trim().toLowerCase()
+    const usadas = new Set(jaUsadas)
+    return (data ?? []).filter((f) => !usadas.has(f.caminho) && (!termo || f.rotulo.toLowerCase().includes(termo)))
+  }, [data, busca, jaUsadas])
 
   function alternar(caminho: string) {
     setEscolhidas((atual) => {
-      const novo = new Set(atual);
-      if (novo.has(caminho)) novo.delete(caminho);
-      else novo.add(caminho);
-      return novo;
-    });
+      const novo = new Set(atual)
+      if (novo.has(caminho)) novo.delete(caminho)
+      else novo.add(caminho)
+      return novo
+    })
   }
 
   async function confirmar() {
-    const selecionadas = (data ?? []).filter((f) => escolhidas.has(f.caminho));
-    setSalvando(true);
+    const selecionadas = (data ?? []).filter((f) => escolhidas.has(f.caminho))
+    setSalvando(true)
     try {
-      await aoConfirmar(selecionadas);
-      setEscolhidas(new Set());
-      setBusca("");
-      aoFechar();
+      await aoConfirmar(selecionadas)
+      setEscolhidas(new Set())
+      setBusca('')
+      aoFechar()
     } finally {
-      setSalvando(false);
+      setSalvando(false)
     }
   }
 
   return (
-    <Modal
-      aberto={aberto}
-      aoFechar={aoFechar}
-      titulo="Usar foto que já existe"
-      largura="max-w-3xl"
-    >
+    <Modal aberto={aberto} aoFechar={aoFechar} titulo="Usar foto que já existe" largura="max-w-3xl">
       <div className="flex flex-col gap-3">
-        <CampoBusca
-          valor={busca}
-          aoMudar={setBusca}
-          placeholder="Buscar por caixa ou material"
-        />
+        <CampoBusca valor={busca} aoMudar={setBusca} placeholder="Buscar por caixa ou material" />
         {error ? (
           <ErroCarga erro={error} />
         ) : isLoading ? (
           <Carregando />
         ) : !lista.length ? (
-          <p className="py-8 text-center text-sm text-zinc-500">
-            Nenhuma foto encontrada.
-          </p>
+          <p className="py-8 text-center text-sm text-zinc-500">Nenhuma foto encontrada.</p>
         ) : (
           <ul className="grid max-h-[50dvh] grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
             {lista.map((f) => {
-              const ativa = escolhidas.has(f.caminho);
+              const ativa = escolhidas.has(f.caminho)
               return (
                 <li key={f.caminho}>
                   <button
@@ -88,10 +73,8 @@ export function SeletorFotoExistente({
                     onClick={() => alternar(f.caminho)}
                     aria-pressed={ativa}
                     className={cn(
-                      "relative block aspect-square w-full overflow-hidden rounded-xl ring-2 transition",
-                      ativa
-                        ? "ring-zinc-900 dark:ring-white"
-                        : "ring-transparent",
+                      'relative block aspect-square w-full overflow-hidden rounded-xl ring-2 transition',
+                      ativa ? 'ring-zinc-900 dark:ring-white' : 'ring-transparent',
                     )}
                   >
                     <img
@@ -110,7 +93,7 @@ export function SeletorFotoExistente({
                     )}
                   </button>
                 </li>
-              );
+              )
             })}
           </ul>
         )}
@@ -123,10 +106,10 @@ export function SeletorFotoExistente({
             carregando={salvando}
             onClick={confirmar}
           >
-            Usar {escolhidas.size ? `(${escolhidas.size})` : ""}
+            Usar {escolhidas.size ? `(${escolhidas.size})` : ''}
           </Botao>
         </div>
       </div>
     </Modal>
-  );
+  )
 }
