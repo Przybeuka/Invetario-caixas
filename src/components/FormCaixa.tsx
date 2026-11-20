@@ -4,7 +4,8 @@ import { atualizarCaixas, criarCaixas, useAcao, useCaixas, useCores, type DadosC
 import type { CaixaResumo, Tamanho } from '../lib/tipos'
 import { cn, formatarDecimal, lerDecimal, normalizar, volumeM3 } from '../lib/util'
 import { Modal } from './Modal'
-import { modeloPorTamanho } from '../lib/grupos'
+import { modelo3dDaCaixa, modeloPorTamanho } from '../lib/grupos'
+import { Modelo3D } from './Modelo3D'
 import { srcModelo } from '../lib/modelos'
 import { Botao, Campo, Ponto, Segmentado } from './ui'
 
@@ -286,10 +287,15 @@ function Conteudo({
         <span className="rotulo">Foto da caixa</span>
         {(() => {
           const modelo = modeloPorTamanho(corSelecionada?.nome ?? null, tamanho || null) ?? corSelecionada?.foto_modelo
+          const glb = modelo3dDaCaixa(corSelecionada?.nome ?? null, tamanho || null)
           return (
             <div className="flex items-center gap-3">
               <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                {modelo && <img src={srcModelo(modelo)} alt="" className="size-full object-contain" />}
+                {glb ? (
+                  <Modelo3D src={glb} alt="Modelo da caixa" interativo={false} />
+                ) : (
+                  modelo && <img src={srcModelo(modelo)} alt="" className="size-full object-contain" />
+                )}
               </div>
               <span className="text-xs text-zinc-500">
                 {modelo

@@ -26,7 +26,10 @@ export function Modelo3D({ src, alt, poster, interativo = true }: Props) {
     if (!pronto || !el) return
     setCarregado(false)
     const aoCarregar = () => setCarregado(true)
-    const aoFalhar = () => setFalhou(true)
+    // Só desiste se o arquivo não carregar; perda momentânea do WebGL (comum no iPhone) se recupera sozinha.
+    const aoFalhar = (e: Event) => {
+      if ((e as CustomEvent<{ type?: string }>).detail?.type === 'loadfailure') setFalhou(true)
+    }
     el.addEventListener('load', aoCarregar)
     el.addEventListener('error', aoFalhar)
     if ((el as HTMLElement & { loaded?: boolean }).loaded) setCarregado(true)

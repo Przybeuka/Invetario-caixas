@@ -6,10 +6,11 @@ import { CopiarConteudo } from '../components/CopiarConteudo'
 import { FormCaixa } from '../components/FormCaixa'
 import { FormTipo } from '../components/FormTipo'
 import { ImagemGrupo, Imagem } from '../components/Imagens'
+import { Modelo3D } from '../components/Modelo3D'
 import { SeloEstado, StatusIcone } from '../components/Status'
 import { Botao, Carregando, classeBotao, Contador, RotuloCor, Vazio } from '../components/ui'
 import { useCaixas, useValidade } from '../lib/api'
-import { agrupar, estadoDaCaixa, imagemDaCaixa, resumoMateriais, resumoTamanho } from '../lib/grupos'
+import { agrupar, estadoDaCaixa, imagemDaCaixa, modelo3dDaCaixa, resumoMateriais, resumoTamanho } from '../lib/grupos'
 import { cn, normalizar, plural, ROTULO_TAMANHO } from '../lib/util'
 
 export function Tipo() {
@@ -113,7 +114,11 @@ export function Tipo() {
                   {c.numero}
                 </span>
                 <span className="hidden size-14 shrink-0 overflow-hidden rounded-lg sm:block">
-                  <Imagem src={img?.src} compacto />
+                  {modelo3dDaCaixa(c.cor_nome, c.tamanho) ? (
+                    <Modelo3D src={modelo3dDaCaixa(c.cor_nome, c.tamanho)!} alt={`Caixa ${c.numero}`} interativo={false} />
+                  ) : (
+                    <Imagem src={img?.src} compacto />
+                  )}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
