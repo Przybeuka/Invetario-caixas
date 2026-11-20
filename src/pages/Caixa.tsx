@@ -360,46 +360,87 @@ export function CaixaPagina() {
 
           <div className="flex flex-wrap gap-2">
             {podeConferir && (
-              <Link to={`/caixas/${caixa.id}/conferir`} className={classeBotao('primario', 'lg')}>
+              <Link to={`/caixas/${caixa.id}/conferir`} className={cn(classeBotao('primario', 'lg'), 'w-full sm:w-auto')}>
                 <ClipboardCheck className="size-5" /> Conferir caixa
               </Link>
             )}
             {podeEditar && (
-              <Botao tamanho="lg" icone={<Pencil className="size-4" />} onClick={() => setEditarAberto(true)}>
+              <Botao
+                tamanho="lg"
+                icone={<Pencil className="size-4" />}
+                onClick={() => setEditarAberto(true)}
+                className="max-sm:flex-1 max-sm:px-3"
+              >
                 Editar
               </Botao>
             )}
             {podeConferir && (
-            <Menu
-              botao={(abrir) => (
-                <Botao tamanho="lg" onClick={abrir} aria-label="Mais ações">
-                  <Ellipsis className="size-5" />
-                </Botao>
-              )}
-            >
-              {(fechar) => (
-                <>
-                  <ItemMenu
-                    icone={<Printer className="size-4" />}
-                    onClick={() => {
-                      fechar()
-                      navigate(`/imprimir?caixa=${caixa.id}`)
-                    }}
-                  >
-                    Imprimir adesivo
-                  </ItemMenu>
-                  {podeEditar && (
+              <Botao
+                tamanho="lg"
+                icone={<Printer className="size-4" />}
+                onClick={() => navigate(`/imprimir?caixa=${caixa.id}`)}
+                className="max-sm:flex-1 max-sm:px-3"
+              >
+                Imprimir
+              </Botao>
+            )}
+            {/* Telas maiores: ações como botões. */}
+            {podeEditar && (
+              <Botao
+                tamanho="lg"
+                icone={<CopyPlus className="size-4" />}
+                onClick={() => setDuplicarAberto(true)}
+                className="hidden sm:inline-flex"
+              >
+                Duplicar
+              </Botao>
+            )}
+            {podeEditar && caixa.qtd_itens > 0 && (
+              <Botao
+                tamanho="lg"
+                icone={<Copy className="size-4" />}
+                onClick={() => setCopiarAberto(true)}
+                className="hidden sm:inline-flex"
+              >
+                Copiar conteúdo
+              </Botao>
+            )}
+            {ehAdmin && (
+              <Botao
+                tamanho="lg"
+                variante="perigo"
+                icone={<Trash2 className="size-4" />}
+                disabled={excluindo}
+                onClick={() => void excluir()}
+                className="hidden sm:inline-flex"
+              >
+                Excluir
+              </Botao>
+            )}
+            {/* Celular: o resto fica no menu (os três pontos). */}
+            {(podeEditar || ehAdmin) && (
+              <div className="sm:hidden">
+                <Menu
+                  botao={(abrir) => (
+                    <Botao tamanho="lg" onClick={abrir} aria-label="Mais ações" className="max-sm:px-4">
+                      <Ellipsis className="size-5" />
+                    </Botao>
+                  )}
+                >
+                  {(fechar) => (
                     <>
-                      <ItemMenu
-                        icone={<CopyPlus className="size-4" />}
-                        onClick={() => {
-                          fechar()
-                          setDuplicarAberto(true)
-                        }}
-                      >
-                        Duplicar caixa
-                      </ItemMenu>
-                      {caixa.qtd_itens > 0 && (
+                      {podeEditar && (
+                        <ItemMenu
+                          icone={<CopyPlus className="size-4" />}
+                          onClick={() => {
+                            fechar()
+                            setDuplicarAberto(true)
+                          }}
+                        >
+                          Duplicar caixa
+                        </ItemMenu>
+                      )}
+                      {podeEditar && caixa.qtd_itens > 0 && (
                         <ItemMenu
                           icone={<Copy className="size-4" />}
                           onClick={() => {
@@ -410,24 +451,23 @@ export function CaixaPagina() {
                           Copiar conteúdo para…
                         </ItemMenu>
                       )}
+                      {ehAdmin && (
+                        <ItemMenu
+                          perigo
+                          disabled={excluindo}
+                          icone={<Trash2 className="size-4" />}
+                          onClick={() => {
+                            fechar()
+                            void excluir()
+                          }}
+                        >
+                          Excluir caixa
+                        </ItemMenu>
+                      )}
                     </>
                   )}
-                  {ehAdmin && (
-                    <ItemMenu
-                      perigo
-                      disabled={excluindo}
-                      icone={<Trash2 className="size-4" />}
-                      onClick={() => {
-                        fechar()
-                        void excluir()
-                      }}
-                    >
-                      Excluir caixa
-                    </ItemMenu>
-                  )}
-                </>
-              )}
-            </Menu>
+                </Menu>
+              </div>
             )}
           </div>
 
