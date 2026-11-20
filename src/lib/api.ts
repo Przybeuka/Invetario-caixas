@@ -201,6 +201,10 @@ export const usePerfis = (ativo = true) =>
     queryFn: () => obter<Perfil[]>(supabase.from('perfis').select('*').order('criado_em')),
   })
 
+export async function desfazerHistorico(id: number) {
+  return obter<string>(supabase.rpc('desfazer_historico', { p_id: id }))
+}
+
 export interface FiltroHistorico {
   tabela: string
   busca: string

@@ -1,7 +1,9 @@
-import { ChevronDown, History, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, History, Pencil, Plus, Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Botao, CampoBusca, Carregando, Chip, ErroCarga, Vazio } from '../components/ui'
-import { useCores, useHistorico, type FiltroHistorico } from '../lib/api'
+import { usePermissoes } from '../auth/auth'
+import { useAvisos } from '../components/avisos'
+import { desfazerHistorico, useAcao, useCores, useHistorico, type FiltroHistorico } from '../lib/api'
 import type { Cor, RegistroHistorico } from '../lib/tipos'
 import { cn, formatarData, formatarHora, formatarQtd, ROTULO_TAMANHO } from '../lib/util'
 
@@ -103,8 +105,50 @@ function Diferencas({ r, cores }: { r: RegistroHistorico; cores: Cor[] }) {
   )
 }
 
-function Linha({ r, cores }: { r: RegistroHistorico; cores: Cor[] }) {
+const DESFAZIVEL = new Set(['caixas', 'caixa_itens', 'materiais', 'fotos'])
+
+function textoDesfazer(r: RegistroHistorico): { titulo: string; mensagem: string; botao: string } {
+  if (r.acao === 'criou')
+    return {
+      titulo: 'Desfazer esta criação?',
+      mensagem: 'O que foi criado será removido (inclusive o que estiver ligado a isso).',
+      botao: 'Remover',
+    }
+  if (r.acao === 'alterou')
+    return {
+      titulo: 'Voltar ao que era antes?',
+      mensagem: 'Os valores antigos mostrados acima serão restaurados.',
+      botao: 'Voltar ao anterior',
+    }
+  return {
+    titulo: 'Restaurar o que foi excluído?',
+    mensagem:
+      r.tabela === 'fotos'
+        ? 'A foto volta a aparecer apenas se o arquivo ainda existir.'
+        : 'Volta com os mesmos dados e o conteúdo registrado. Fotos de uma caixa ou material excluído não são recuperadas.',
+    botao: 'Restaurar',
+  }
+}
+
+function Linha({ r, cores, podeEditar }: { r: RegistroHistorico; cores: Cor[]; podeEditar: boolean }) {
   const [aberto, setAberto] = useState(false)
+  const { confirmar } = useAvisos()
+  const desfazer = useAcao(desfazerHistorico, (resumo) => `Desfeito: ${resumo}`)
+  const podeDesfazer = podeEditar && DESFAZIVEL.has(r.tabela)
+  async function aoDesfazer() {
+    const t = textoDesfazer(r)
+    const ok = await confirmar({
+      titulo: t.titulo,
+      mensagem: (
+        <>
+          {r.resumo}. {t.mensagem}
+        </>
+      ),
+      confirmar: t.botao,
+      perigo: r.acao === 'criou',
+    })
+    if (ok) desfazer.mutate(r.id)
+  }
   const Icone = r.acao === 'criou' ? Plus : r.acao === 'alterou' ? Pencil : Trash2
   const verbo = r.acao === 'criou' ? 'Criou' : r.acao === 'alterou' ? 'Alterou' : 'Excluiu'
   const rotuloTabela = TABELAS.find((t) => t.valor === r.tabela)?.rotulo
@@ -135,6 +179,11 @@ function Linha({ r, cores }: { r: RegistroHistorico; cores: Cor[] }) {
       {aberto && (
         <div className="ml-11 mt-2 rounded-xl bg-zinc-50 p-3 text-sm dark:bg-zinc-950/50">
           <Diferencas r={r} cores={cores} />
+          {podeDesfazer && (
+            <Botao className="mt-3" carregando={desfazer.isPending} onClick={aoDesfazer}>
+              <Undo2 className="size-4" /> Desfazer
+            </Botao>
+          )}
         </div>
       )}
     </li>
@@ -162,6 +211,7 @@ export function Historico() {
   const filtro: FiltroHistorico = useMemo(() => ({ tabela, busca: buscaAplicada }), [tabela, buscaAplicada])
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useHistorico(filtro)
   const { data: cores = [] } = useCores()
+  const { podeEditar } = usePermissoes()
   const registros = useMemo(() => data?.pages.flat() ?? [], [data])
 
   const porDia = useMemo(() => {
@@ -203,7 +253,7 @@ export function Historico() {
               <h2 className="rotulo mb-2">{g.dia}</h2>
               <ul className="cartao divide-y divide-zinc-100 px-4 dark:divide-zinc-800">
                 {g.itens.map((r) => (
-                  <Linha key={r.id} r={r} cores={cores} />
+                  <Linha key={r.id} r={r} cores={cores} podeEditar={podeEditar} />
                 ))}
               </ul>
             </section>
