@@ -48,10 +48,12 @@ export function modeloPorTamanho(cor: string | null, tamanho: string | null): st
 
 /** Arquivo .glb do modelo 3D da caixa (cor + tamanho), quando existe. */
 export function modelo3dDaCaixa(cor: string | null, tamanho: string | null): string | null {
-  if (!cor || !tamanho) return null
+  if (!cor) return null
   const c = normalizar(cor)
-  const ok = MODELO_POR_COR[c]?.[tamanho]
-  return ok ? `/modelos3d/${c}-${tamanho}.glb` : null
+  const tamanhos = Object.keys(MODELO_POR_COR[c] ?? {})
+  // Cor com um tamanho só (caqui, amarela, vermelha): não depende do cadastro do tamanho.
+  const t = tamanho && tamanhos.includes(tamanho) ? tamanho : tamanhos.length === 1 ? tamanhos[0] : null
+  return t ? `/modelos3d/${c}-${t}.glb` : null
 }
 
 export function imagemDaCaixa(c: CaixaResumo, soModelo = false): Imagem | null {

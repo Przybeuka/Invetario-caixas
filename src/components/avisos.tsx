@@ -149,9 +149,9 @@ export function ProvedorAvisos({ children }: { children: ReactNode }) {
         aberto={!!escolha}
         aoFechar={() => responderEscolha('cancelar')}
         titulo={escolha?.titulo ?? ''}
-        largura="max-w-md"
+        largura="max-w-xl"
         rodape={
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
             <Botao onClick={() => responderEscolha('cancelar')}>{escolha?.cancelar ?? 'Continuar editando'}</Botao>
             <Botao onClick={() => responderEscolha('nao')}>{escolha?.nao}</Botao>
             <Botao variante="primario" onClick={() => responderEscolha('sim')}>

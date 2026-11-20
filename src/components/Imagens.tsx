@@ -107,6 +107,9 @@ export function Galeria({
     [fotos],
   )
   const [indice, setIndice] = useState(0)
+  // Com modelo 3D, ele é a primeira vista; as fotos ficam nas miniaturas para escolher.
+  const [ver3d, setVer3d] = useState(!!modelo3d)
+  const mostrando3d = !!modelo3d && (ver3d || !ordenadas.length)
   const [ampliada, setAmpliada] = useState(false)
   const [enviando, setEnviando] = useState<{
     feitos: number
@@ -118,7 +121,7 @@ export function Galeria({
   const { avisar, confirmar } = useAvisos()
   const qc = useQueryClient()
 
-  const atual = ordenadas[Math.min(indice, ordenadas.length - 1)]
+  const atual = mostrando3d ? undefined : ordenadas[Math.min(indice, ordenadas.length - 1)]
   const srcPrincipal = atual ? urlFoto(atual.caminho) : modelo ? srcModelo(modelo, true) : null
 
   async function aoEscolher(e: ChangeEvent<HTMLInputElement>) {
@@ -189,7 +192,7 @@ export function Galeria({
   return (
     <div className="flex flex-col gap-3">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
-        {!atual && modelo3d ? (
+        {mostrando3d && modelo3d ? (
           <Modelo3D src={modelo3d} alt={alt} poster={modelo ? srcModelo(modelo, true) : null} />
         ) : srcPrincipal ? (
           <button type="button" className="size-full" onClick={() => setAmpliada(true)} aria-label="Ampliar foto">
@@ -198,7 +201,7 @@ export function Galeria({
         ) : (
           <SemFoto />
         )}
-        {!atual && modelo && (
+        {(mostrando3d || (!atual && modelo)) && (
           <span className="rotulo absolute bottom-3 left-3 rounded-lg bg-white/90 px-2 py-1 text-zinc-700 backdrop-blur dark:bg-zinc-900/80 dark:text-zinc-200">
             {modelo3d ? 'Modelo 3D · arraste para girar' : 'Foto do modelo'}
           </span>
@@ -237,18 +240,35 @@ export function Galeria({
         )}
       </div>
 
-      {(ordenadas.length > 1 || podeEditar) && (
+      {(ordenadas.length > 1 || (modelo3d && ordenadas.length > 0) || podeEditar) && (
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {ordenadas.length > 1 &&
+          {modelo3d && ordenadas.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setVer3d(true)}
+              aria-label="Ver modelo 3D"
+              className={cn(
+                'relative size-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-2 transition dark:bg-zinc-800',
+                mostrando3d ? 'ring-zinc-900 dark:ring-white' : 'ring-transparent opacity-75 hover:opacity-100',
+              )}
+            >
+              {modelo && <Imagem src={srcModelo(modelo)} compacto />}
+              <span className="absolute inset-x-0 bottom-0 bg-zinc-900/80 py-0.5 text-center text-[10px] font-bold text-white">3D</span>
+            </button>
+          )}
+          {(ordenadas.length > 1 || modelo3d) &&
             ordenadas.map((f, i) => (
               <button
                 key={f.id}
                 type="button"
-                onClick={() => setIndice(i)}
+                onClick={() => {
+                  setIndice(i)
+                  setVer3d(false)
+                }}
                 aria-label={`Foto ${i + 1}`}
                 className={cn(
                   'size-16 shrink-0 overflow-hidden rounded-xl ring-2 transition',
-                  i === indice ? 'ring-zinc-900 dark:ring-white' : 'ring-transparent opacity-75 hover:opacity-100',
+                  !mostrando3d && i === indice ? 'ring-zinc-900 dark:ring-white' : 'ring-transparent opacity-75 hover:opacity-100',
                 )}
               >
                 <Imagem src={urlFoto(f.caminho_miniatura)} compacto />
@@ -261,7 +281,7 @@ export function Galeria({
                 icone={<Camera className="size-4" />}
                 onClick={() => entrada.current?.click()}
                 disabled={!!enviando}
-                className={ordenadas.length > 1 ? 'h-16' : ''}
+                className={ordenadas.length > 1 || (modelo3d && ordenadas.length) ? 'h-16' : ''}
               >
                 {ordenadas.length ? 'Mais fotos' : 'Adicionar foto'}
               </Botao>

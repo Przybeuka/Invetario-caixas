@@ -10,9 +10,11 @@ import {
   Pencil,
   Plus,
   Printer,
+  Save,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { usePermissoes } from '../auth/auth'
 import { AdicionarMaterial } from '../components/AdicionarMaterial'
@@ -49,6 +51,7 @@ import {
 } from '../lib/api'
 import { estadoDaCaixa, modelo3dDaCaixa, modeloPorTamanho } from '../lib/grupos'
 import type { CaixaItem, CaixaResumo, Conferencia } from '../lib/tipos'
+import { useTravaSaida } from '../lib/travaSaida'
 import {
   cn,
   corTexto,
@@ -65,30 +68,72 @@ import {
   tempoRelativo,
 } from '../lib/util'
 
-/** Quantidade editável que salva sozinha ~0,7 s depois da última mudança. */
-function QuantidadeItem({ item }: { item: CaixaItem }) {
-  const [valor, setValor] = useState(Number(item.quantidade))
-  const temporizador = useRef<number | undefined>(undefined)
+/** Quantidade editável: a mudança fica pendente até tocar em “Salvar alterações”. */
+function QuantidadeItem({ valor, aoMudar }: { valor: number; aoMudar: (v: number) => void }) {
   const { avisar } = useAvisos()
-  const salvar = useAcao((q: number) => atualizarItem(item.id, { quantidade: q }))
-
-  useEffect(() => setValor(Number(item.quantidade)), [item.quantidade])
-  useEffect(() => () => window.clearTimeout(temporizador.current), [])
-
   function mudar(v: number) {
     if (v <= 0) {
       avisar('Para tirar o material da caixa, use a lixeira.', 'info')
       return
     }
-    setValor(v)
-    window.clearTimeout(temporizador.current)
-    temporizador.current = window.setTimeout(() => salvar.mutate(v), 700)
+    aoMudar(v)
   }
-
   return <PassoQuantidade valor={valor} aoMudar={mudar} min={0} />
 }
 
-function LinhaItem({ item, podeEditar, modelo }: { item: CaixaItem; podeEditar: boolean; modelo: string | null }) {
+/** Barra com o botão de salvar, repetida acima e abaixo da lista de materiais. */
+function BarraSalvar({
+  alteradas,
+  salvando,
+  aoSalvar,
+  aoDescartar,
+}: {
+  alteradas: number
+  salvando: boolean
+  aoSalvar: () => void
+  aoDescartar: () => void
+}) {
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-3 transition',
+        alteradas
+          ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-900'
+          : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-900',
+      )}
+    >
+      <span className="text-sm font-semibold">
+        {alteradas
+          ? `${alteradas} ${alteradas === 1 ? 'quantidade alterada' : 'quantidades alteradas'} sem salvar`
+          : 'Nenhuma alteração pendente'}
+      </span>
+      <div className="flex gap-2">
+        {alteradas > 0 && (
+          <Botao onClick={aoDescartar} disabled={salvando}>
+            Descartar
+          </Botao>
+        )}
+        <Botao variante="primario" icone={<Save className="size-4" />} onClick={aoSalvar} disabled={!alteradas || salvando}>
+          {salvando ? 'Salvando…' : 'Salvar alterações'}
+        </Botao>
+      </div>
+    </div>
+  )
+}
+
+function LinhaItem({
+  item,
+  podeEditar,
+  modelo,
+  valor,
+  aoMudar,
+}: {
+  item: CaixaItem
+  podeEditar: boolean
+  modelo: string | null
+  valor: number
+  aoMudar: (v: number) => void
+}) {
   const { confirmar } = useAvisos()
   const remover = useAcao(() => removerItem(item.id), `${item.material.nome} removido da caixa.`)
   const capa = [...(item.material.fotos ?? [])].sort((a, b) => a.ordem - b.ordem)[0]?.caminho_miniatura
@@ -106,7 +151,7 @@ function LinhaItem({ item, podeEditar, modelo }: { item: CaixaItem; podeEditar: 
       </Link>
       {podeEditar ? (
         <div className="flex items-center gap-1">
-          <QuantidadeItem item={item} />
+          <QuantidadeItem valor={valor} aoMudar={aoMudar} />
           <span className="rotulo hidden w-10 sm:block">{item.material.unidade}</span>
           <BotaoIcone
             rotulo={`Remover ${item.material.nome}`}
@@ -218,7 +263,8 @@ export function CaixaPagina() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { podeConferir, podeEditar, ehAdmin } = usePermissoes()
-  const { confirmar, avisar } = useAvisos()
+  const { confirmar, avisar, escolher } = useAvisos()
+  const qc = useQueryClient()
   const { data: caixas = [], isLoading } = useCaixas()
   const validade = useValidade()
   const caixa = caixas.find((c) => c.id === id)
@@ -233,6 +279,52 @@ export function CaixaPagina() {
   const [adicionarAberto, setAdicionarAberto] = useState(false)
   const [copiarAberto, setCopiarAberto] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
+
+  // Quantidades alteradas e ainda não salvas (id do item → nova quantidade).
+  const [pendentes, setPendentes] = useState<Record<string, number>>({})
+  const [salvandoQtd, setSalvandoQtd] = useState(false)
+  const alteradas = itens.filter((i) => pendentes[i.id] !== undefined && pendentes[i.id] !== Number(i.quantidade)).length
+
+  function mudarQuantidade(item: CaixaItem, v: number) {
+    setPendentes((p) => {
+      const n = { ...p }
+      if (v === Number(item.quantidade)) delete n[item.id]
+      else n[item.id] = v
+      return n
+    })
+  }
+
+  async function salvarQuantidades(): Promise<boolean> {
+    const mudancas = itens.filter((i) => pendentes[i.id] !== undefined && pendentes[i.id] !== Number(i.quantidade))
+    if (!mudancas.length) return true
+    setSalvandoQtd(true)
+    try {
+      await Promise.all(mudancas.map((i) => atualizarItem(i.id, { quantidade: pendentes[i.id] })))
+      await qc.invalidateQueries()
+      setPendentes({})
+      avisar(mudancas.length === 1 ? 'Quantidade salva.' : `${mudancas.length} quantidades salvas.`)
+      return true
+    } catch (erro) {
+      avisar(mensagemErro(erro), 'erro')
+      return false
+    } finally {
+      setSalvandoQtd(false)
+    }
+  }
+
+  useTravaSaida(alteradas > 0, async () => {
+    const r = await escolher({
+      titulo: 'Salvar antes de sair?',
+      mensagem: 'Você alterou quantidades de materiais desta caixa e ainda não salvou.',
+      sim: 'Sim, salvar',
+      nao: 'Sair sem salvar',
+      cancelar: 'Continuar editando',
+    })
+    if (r === 'cancelar') return false
+    if (r === 'sim') return salvarQuantidades()
+    setPendentes({})
+    return true
+  })
 
   const jaNaCaixa = useMemo(() => new Set(itens.map((i) => i.material_id)), [itens])
   const mesmoTipo = useMemo(
@@ -498,16 +590,36 @@ export function CaixaPagina() {
         {carregandoItens ? (
           <Carregando />
         ) : itens.length ? (
-          <ul className="cartao divide-y divide-zinc-100 px-4 dark:divide-zinc-800">
-            {itens.map((item) => (
-              <LinhaItem
-                key={item.id}
-                item={item}
-                podeEditar={podeEditar}
-                modelo={modeloDoMaterial(item.material.nome, cores, caixa.tamanho)}
+          <div className="flex flex-col gap-3">
+            {podeEditar && (
+              <BarraSalvar
+                alteradas={alteradas}
+                salvando={salvandoQtd}
+                aoSalvar={() => void salvarQuantidades()}
+                aoDescartar={() => setPendentes({})}
               />
-            ))}
-          </ul>
+            )}
+            <ul className="cartao divide-y divide-zinc-100 px-4 dark:divide-zinc-800">
+              {itens.map((item) => (
+                <LinhaItem
+                  key={item.id}
+                  item={item}
+                  podeEditar={podeEditar}
+                  modelo={modeloDoMaterial(item.material.nome, cores, caixa.tamanho)}
+                  valor={pendentes[item.id] ?? Number(item.quantidade)}
+                  aoMudar={(v) => mudarQuantidade(item, v)}
+                />
+              ))}
+            </ul>
+            {podeEditar && (
+              <BarraSalvar
+                alteradas={alteradas}
+                salvando={salvandoQtd}
+                aoSalvar={() => void salvarQuantidades()}
+                aoDescartar={() => setPendentes({})}
+              />
+            )}
+          </div>
         ) : (
           <Vazio
             icone={<Package className="size-10" strokeWidth={1.25} />}
