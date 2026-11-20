@@ -27,6 +27,30 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      ;(function () {
+        var erros = []
+        function mostrar() {
+          var raiz = document.getElementById('root')
+          if (!raiz || raiz.children.length) return
+          raiz.innerHTML =
+            '<div style="font:14px -apple-system,sans-serif;padding:24px;max-width:560px;margin:0 auto">' +
+            '<h1 style="font-size:20px;margin:0 0 8px">Não foi possível abrir o app</h1>' +
+            '<p style="color:#52525b;margin:0 0 12px">Feche e abra de novo. Se persistir, envie esta mensagem:</p>' +
+            '<pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f5;color:#18181b;padding:12px;border-radius:8px;font-size:12px"></pre></div>'
+          raiz.querySelector('pre').textContent = (erros.join('\n') || 'sem detalhes') + '\n' + navigator.userAgent
+        }
+        window.addEventListener('error', function (e) {
+          erros.push((e.message || 'erro') + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''))
+          setTimeout(mostrar, 1500)
+        })
+        window.addEventListener('unhandledrejection', function (e) {
+          erros.push('promessa: ' + ((e.reason && e.reason.message) || e.reason))
+          setTimeout(mostrar, 1500)
+        })
+        setTimeout(mostrar, 6000)
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
