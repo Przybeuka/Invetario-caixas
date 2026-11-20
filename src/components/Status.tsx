@@ -67,7 +67,7 @@ export function SeloEstado({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ring-1',
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 sm:px-2.5 sm:py-1 sm:text-[11px] sm:tracking-wider',
         ESTILO_SELO[estado],
         className,
       )}

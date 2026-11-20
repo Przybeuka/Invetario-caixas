@@ -110,7 +110,7 @@ export function Layout() {
           <Link to="/" className="flex min-w-0 items-center gap-3">
             <Logo />
             <div className="min-w-0 leading-tight">
-              <div className="truncate font-display text-xl font-bold uppercase tracking-wide">Inventário de caixas</div>
+              <div className="truncate font-display text-lg font-bold uppercase tracking-wide sm:text-xl">Inventário de caixas</div>
               <div className="rotulo truncate">Consulta de materiais</div>
             </div>
           </Link>
@@ -130,7 +130,7 @@ export function Layout() {
             ) : (
               <Link
                 to={`/entrar?voltar=${encodeURIComponent(pathname)}`}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-zinc-900 px-4 text-[13px] font-semibold uppercase tracking-wider text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-zinc-900 px-3 text-[12px] font-semibold uppercase tracking-wide text-white sm:px-4 sm:text-[13px] sm:tracking-wider transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900"
               >
                 <LogIn className="size-4" /> Entrar
               </Link>
@@ -148,7 +148,7 @@ export function Layout() {
                     end={item.para === '/'}
                     className={({ isActive }) =>
                       cn(
-                        'flex h-10 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-[13px] font-semibold uppercase tracking-wider transition',
+                        'flex h-10 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-[12px] font-semibold uppercase tracking-wide transition sm:px-3.5 sm:text-[13px] sm:tracking-wider',
                         isActive || extra
                           ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
                           : 'text-zinc-600 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:bg-zinc-800',

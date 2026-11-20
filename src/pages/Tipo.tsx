@@ -109,7 +109,7 @@ export function Tipo() {
                 className="cartao group flex items-center gap-3 overflow-hidden p-2 pr-3 transition hover:shadow-md sm:gap-4"
               >
                 <span aria-hidden className="h-14 w-1.5 shrink-0 rounded-full" style={{ background: c.cor_hex ?? '#a1a1aa' }} />
-                <span className="w-16 shrink-0 text-center font-display text-4xl font-bold tabular-nums leading-none sm:w-20 sm:text-5xl">
+                <span className="w-14 shrink-0 text-center font-display text-3xl font-bold tabular-nums leading-none sm:w-20 sm:text-5xl">
                   {c.numero}
                 </span>
                 <span className="hidden size-14 shrink-0 overflow-hidden rounded-lg sm:block">
@@ -127,7 +127,7 @@ export function Tipo() {
                     </span>
                   )}
                 </span>
-                <SeloEstado estado={estado} data={c.conferido_em} className="hidden md:inline-flex" />
+                <SeloEstado estado={estado} data={c.conferido_em} className="max-md:hidden" />
                 <StatusIcone estado={estado} tamanho="sm" className="md:hidden" />
                 <ChevronRight className={cn('size-5 shrink-0 text-zinc-400 transition group-hover:translate-x-0.5')} />
               </Link>

@@ -27,7 +27,7 @@ const VARIANTES: Record<VarianteBotao, string> = {
 
 const TAMANHOS: Record<TamanhoBotao, string> = {
   sm: 'h-9 gap-1.5 rounded-lg px-3 text-xs',
-  md: 'h-11 gap-2 rounded-xl px-4 text-[13px]',
+  md: 'h-11 gap-2 rounded-xl px-4 text-[12px] sm:text-[13px]',
   lg: 'h-12 gap-2 rounded-xl px-5 text-sm',
 }
 

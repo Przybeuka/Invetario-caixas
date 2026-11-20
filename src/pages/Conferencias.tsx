@@ -101,7 +101,7 @@ export function Conferencias() {
                       : 'Nunca conferida'}
                   </span>
                 </span>
-                <SeloEstado estado={estado} data={caixa.conferido_em} className="hidden md:inline-flex" />
+                <SeloEstado estado={estado} data={caixa.conferido_em} className="max-md:hidden" />
               </Link>
               <Link to={`/caixas/${caixa.id}/conferir`} className={classeBotao(estado === 'ok' ? 'secundario' : 'primario', 'sm')}>
                 <ClipboardCheck className="size-4" />
