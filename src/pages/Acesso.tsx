@@ -34,13 +34,13 @@ function Moldura({ children }: { children: ReactNode }) {
           <Link to="/" className="rotulo mb-6 inline-flex items-center gap-1.5 hover:text-zinc-900 dark:hover:text-white">
             ← Voltar para a consulta
           </Link>
-          <div className="mb-8 flex items-center gap-3">
+          <Link to="/" title="Ir para a home" className="mb-8 flex items-center gap-3">
             <Logo className="size-12" />
             <div className="leading-tight">
               <div className="font-display text-2xl font-bold uppercase tracking-wide">Inventário de caixas</div>
               <div className="rotulo">Consulta de materiais</div>
             </div>
-          </div>
+          </Link>
           {children}
         </div>
       </div>
