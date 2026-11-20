@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { atualizarCaixas, criarCaixas, useAcao, useCaixas, useCores, type DadosCaixa } from '../lib/api'
 import type { CaixaResumo, Tamanho } from '../lib/tipos'
-import { cn, normalizar } from '../lib/util'
+import { cn, formatarDecimal, lerDecimal, normalizar, volumeM3 } from '../lib/util'
 import { Modal } from './Modal'
 import { SeletorModelo } from './SeletorModelo'
 import { Botao, Campo, Ponto, Segmentado } from './ui'
@@ -75,6 +75,10 @@ function Conteudo({
   const [local, setLocal] = useState(caixa?.local ?? inicial?.local ?? '')
   const [observacoes, setObservacoes] = useState(caixa?.observacoes ?? inicial?.observacoes ?? '')
   const [fotoModelo, setFotoModelo] = useState<string | null>(caixa?.foto_modelo ?? inicial?.foto_modelo ?? null)
+  const [peso, setPeso] = useState(formatarDecimal(caixa?.peso_kg))
+  const [comp, setComp] = useState(formatarDecimal(caixa?.comprimento_cm))
+  const [larg, setLarg] = useState(formatarDecimal(caixa?.largura_cm))
+  const [alt, setAlt] = useState(formatarDecimal(caixa?.altura_cm))
   const [copiarDe, setCopiarDe] = useState(inicial?.copiarDe ?? '')
   const [copiarTocado, setCopiarTocado] = useState(inicial?.copiarDe !== undefined)
 
@@ -101,6 +105,10 @@ function Conteudo({
     setTamanho((atual) => atual || ref.tamanho || '')
     setFotoModelo((atual) => atual ?? ref.foto_modelo)
     setLocal((atual) => atual || ref.local || '')
+    setPeso((atual) => atual || formatarDecimal(ref.peso_kg))
+    setComp((atual) => atual || formatarDecimal(ref.comprimento_cm))
+    setLarg((atual) => atual || formatarDecimal(ref.largura_cm))
+    setAlt((atual) => atual || formatarDecimal(ref.altura_cm))
     if (!copiarTocado) {
       const modelo = mesmas.find((c) => c.qtd_itens > 0)
       if (modelo) setCopiarDe(modelo.id)
@@ -124,6 +132,10 @@ function Conteudo({
         local: local.trim() || null,
         observacoes: observacoes.trim() || null,
         foto_modelo: fotoModelo,
+        peso_kg: lerDecimal(peso),
+        comprimento_cm: lerDecimal(comp),
+        largura_cm: lerDecimal(larg),
+        altura_cm: lerDecimal(alt),
       }
       if (caixa) {
         await atualizarCaixas([caixa.id], { ...dados, numero: n })
@@ -234,6 +246,40 @@ function Conteudo({
           aoMudar={(v) => setTamanho(v === 'nenhum' ? '' : (v as Tamanho))}
           className="w-full"
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="rotulo">Medidas e peso (opcional)</span>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(
+            [
+              ['Comprimento', comp, setComp, 'cm'],
+              ['Largura', larg, setLarg, 'cm'],
+              ['Altura', alt, setAlt, 'cm'],
+              ['Peso', peso, setPeso, 'kg'],
+            ] as const
+          ).map(([rotulo, valor, mudar, unidade]) => (
+            <label key={rotulo} className="flex flex-col gap-1">
+              <span className="text-xs text-zinc-500">{rotulo}</span>
+              <div className="relative">
+                <input
+                  className="campo pr-10"
+                  inputMode="decimal"
+                  value={valor}
+                  onChange={(e) => mudar(e.target.value.replace(/[^\d.,]/g, ''))}
+                  placeholder="0"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500">
+                  {unidade}
+                </span>
+              </div>
+            </label>
+          ))}
+        </div>
+        {(() => {
+          const v = volumeM3({ comprimento_cm: lerDecimal(comp), largura_cm: lerDecimal(larg), altura_cm: lerDecimal(alt) })
+          return v ? <span className="text-xs text-zinc-500">Volume: {formatarDecimal(v, 4)} m³</span> : null
+        })()}
       </div>
 
       <div className="flex flex-col gap-1.5">

@@ -46,7 +46,7 @@ import {
   useValidade,
 } from '../lib/api'
 import { estadoDaCaixa } from '../lib/grupos'
-import type { CaixaItem, Conferencia } from '../lib/tipos'
+import type { CaixaItem, CaixaResumo, Conferencia } from '../lib/tipos'
 import {
   cn,
   corTexto,
@@ -58,6 +58,8 @@ import {
   normalizar,
   plural,
   ROTULO_TAMANHO,
+  formatarDecimal,
+  volumeM3,
   tempoRelativo,
 } from '../lib/util'
 
@@ -313,6 +315,7 @@ export function CaixaPagina() {
                   </span>
                 )}
               </div>
+              <Medidas caixa={caixa} />
             </div>
           </div>
 
@@ -485,4 +488,17 @@ export function CaixaPagina() {
       )}
     </div>
   )
+}
+
+function Medidas({ caixa }: { caixa: CaixaResumo }) {
+  const v = volumeM3(caixa)
+  const partes = [
+    caixa.comprimento_cm && caixa.largura_cm && caixa.altura_cm
+      ? `${formatarDecimal(caixa.comprimento_cm)} × ${formatarDecimal(caixa.largura_cm)} × ${formatarDecimal(caixa.altura_cm)} cm`
+      : null,
+    v ? `${formatarDecimal(v, 4)} m³` : null,
+    caixa.peso_kg ? `${formatarDecimal(caixa.peso_kg)} kg` : null,
+  ].filter(Boolean)
+  if (!partes.length) return null
+  return <p className="mt-1.5 text-sm tabular-nums text-zinc-500">{partes.join('  ·  ')}</p>
 }

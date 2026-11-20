@@ -112,4 +112,15 @@ dialog::backdrop {
   .dark .folha {
     color: #09090b;
   }
+  .quebra-pagina {
+    break-after: page;
+    page-break-after: always;
+  }
+  .quebra-pagina:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
 }

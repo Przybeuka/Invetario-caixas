@@ -47,6 +47,10 @@ export interface CaixaResumo {
   conferido_por_nome: string | null
   fotos_caixa: string[] | null
   fotos_materiais: string[] | null
+  peso_kg: number | null
+  comprimento_cm: number | null
+  largura_cm: number | null
+  altura_cm: number | null
 }
 
 export interface Material {

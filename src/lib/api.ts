@@ -114,7 +114,7 @@ export const useItens = (caixaId: string | undefined) =>
 export interface ItemResumido {
   caixa_id: string
   quantidade: number
-  material: { nome: string; unidade: string }
+  material: { nome: string; unidade: string; fotos: { caminho_miniatura: string; ordem: number }[] | null }
 }
 
 /** Conteúdo de todas as caixas (para impressão). */
@@ -125,7 +125,7 @@ export const useTodosItens = (ativo = true) =>
     queryFn: async () => {
       const itens = await todasLinhas<ItemResumido>(
         'caixa_itens',
-        'id, caixa_id, quantidade, material:materiais(nome, unidade)',
+        'id, caixa_id, quantidade, material:materiais(nome, unidade, fotos(caminho_miniatura, ordem))',
       )
       const porCaixa = new Map<string, ItemResumido[]>()
       for (const i of itens) {
@@ -236,6 +236,10 @@ export interface DadosCaixa {
   local: string | null
   observacoes: string | null
   foto_modelo: string | null
+  peso_kg?: number | null
+  comprimento_cm?: number | null
+  largura_cm?: number | null
+  altura_cm?: number | null
 }
 
 export async function criarCaixas(dados: DadosCaixa, numeros: number[], copiarDe: string | null) {

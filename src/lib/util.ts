@@ -59,6 +59,23 @@ export const PRIORIDADE_ESTADO: Record<EstadoCaixa, number> = { pendencia: 0, nu
 
 export const ROTULO_TAMANHO: Record<Tamanho, string> = { pequena: 'Pequena', media: 'Média', grande: 'Grande' }
 
+/** Número decimal digitado (aceita vírgula). Vazio ou inválido → null. */
+export function lerDecimal(texto: string): number | null {
+  const n = Number.parseFloat(texto.replace(/\./g, '').replace(',', '.'))
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+export function formatarDecimal(n: number | null | undefined, casas = 2): string {
+  if (n == null) return ''
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: casas })
+}
+
+/** Volume em m³ a partir das medidas em cm. */
+export function volumeM3(c: { comprimento_cm: number | null; largura_cm: number | null; altura_cm: number | null }): number | null {
+  if (!c.comprimento_cm || !c.largura_cm || !c.altura_cm) return null
+  return (c.comprimento_cm * c.largura_cm * c.altura_cm) / 1_000_000
+}
+
 export const UNIDADES = ['un', 'par', 'kit', 'jogo', 'm', 'rolo', 'pacote', 'caixa', 'L', 'kg']
 
 /** Texto preto ou branco, o que tiver mais contraste com a cor de fundo. */

@@ -1,21 +1,30 @@
-import { Printer, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ClipboardCheck, Package, Printer, Sticker, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { QR } from '../components/QR'
-import { Botao, Campo, Carregando, Segmentado, Vazio } from '../components/ui'
+import { Botao, Campo, Carregando, Vazio } from '../components/ui'
+import { imagemDaCaixa } from '../lib/grupos'
 import { useCaixas, useCores, useTodosItens, type ItemResumido } from '../lib/api'
+import { urlFoto } from '../lib/supabase'
 import type { CaixaResumo } from '../lib/tipos'
-import { cn, corTexto, formatarData, formatarQtd, normalizar, ROTULO_TAMANHO } from '../lib/util'
+import { cn, corTexto, formatarDecimal, formatarQtd, normalizar, ROTULO_TAMANHO, volumeM3 } from '../lib/util'
 
-type Documento = 'adesivos' | 'lista'
-type ModeloAdesivo = 'materiais' | 'geral'
-type Fundo = 'branco' | 'preto'
+type Documento = 'ficha' | 'adesivo'
 
-function dividir<T>(lista: T[], tamanho: number): T[][] {
-  const partes: T[][] = []
-  for (let i = 0; i < lista.length; i += tamanho) partes.push(lista.slice(i, i + tamanho))
-  return partes
-}
+const DOCUMENTOS: { valor: Documento; titulo: string; texto: string; icone: typeof Printer }[] = [
+  {
+    valor: 'ficha',
+    titulo: 'Ficha de conferência',
+    texto: 'PDF com a lista de materiais para marcar na hora de conferir.',
+    icone: ClipboardCheck,
+  },
+  {
+    valor: 'adesivo',
+    titulo: 'Adesivo com materiais',
+    texto: 'Folha A4 para colar na caixa, com fotos dos materiais e QR code.',
+    icone: Sticker,
+  },
+]
 
 /** Reduz a prévia para caber na tela sem afetar a impressão. */
 function useEscala(larguraMm: number) {
@@ -32,203 +41,332 @@ function useEscala(larguraMm: number) {
   return { ref, escala }
 }
 
-function Faixa({ caixa }: { caixa: CaixaResumo }) {
-  const hex = caixa.cor_hex ?? '#71717a'
-  return (
-    <div
-      className="flex h-[11mm] shrink-0 items-center justify-between px-[5mm] text-[11pt] font-bold uppercase tracking-[0.2em]"
-      style={{ background: hex, color: corTexto(hex) }}
-    >
-      <span>{caixa.cor_nome ?? 'Sem cor'}</span>
-      {caixa.tamanho && <span>{ROTULO_TAMANHO[caixa.tamanho]}</span>}
-    </div>
-  )
+// ---------------------------------------------------------------------------
+// Peças comuns
+// ---------------------------------------------------------------------------
+
+function fotoDoItem(i: ItemResumido): string | null {
+  const f = [...(i.material.fotos ?? [])].sort((a, b) => a.ordem - b.ordem)[0]
+  return f ? urlFoto(f.caminho_miniatura) : null
 }
 
-function Etiqueta({ fundo, className, children }: { fundo: Fundo; className?: string; children: ReactNode }) {
+function dimensoes(c: CaixaResumo): string | null {
+  if (!c.comprimento_cm || !c.largura_cm || !c.altura_cm) return null
+  return `${formatarDecimal(c.comprimento_cm)} × ${formatarDecimal(c.largura_cm)} × ${formatarDecimal(c.altura_cm)} cm`
+}
+
+function especificacoes(c: CaixaResumo): { rotulo: string; valor: string }[] {
+  const v = volumeM3(c)
+  return [
+    { rotulo: 'Cor', valor: c.cor_nome ?? '' },
+    { rotulo: 'Tamanho', valor: c.tamanho ? ROTULO_TAMANHO[c.tamanho] : '' },
+    { rotulo: 'Dimensões (C × L × A)', valor: dimensoes(c) ?? '' },
+    { rotulo: 'Volume', valor: v ? `${formatarDecimal(v, 4)} m³` : '' },
+    { rotulo: 'Peso', valor: c.peso_kg ? `${formatarDecimal(c.peso_kg)} kg` : '' },
+    { rotulo: 'Local', valor: c.local ?? '' },
+  ].filter((e) => e.valor)
+}
+
+function Miniatura({ src, className, tamanho }: { src: string | null; className?: string; tamanho?: string }) {
   return (
     <div
-      className={cn(
-        'flex flex-col overflow-hidden rounded-[3mm] border-[0.4mm]',
-        fundo === 'preto' ? 'border-zinc-950 bg-zinc-950 text-white' : 'border-zinc-900 bg-white text-zinc-950',
-        className,
+      className={cn('flex shrink-0 items-center justify-center overflow-hidden bg-zinc-100', className)}
+      style={tamanho ? { width: tamanho, height: tamanho } : undefined}
+    >
+      {src ? (
+        <img src={src} alt="" className="size-full object-cover" />
+      ) : (
+        <Package className="size-1/2 text-zinc-300" strokeWidth={1.25} />
       )}
-    >
-      {children}
     </div>
   )
 }
 
-function CodigoQR({ caixa, tamanho }: { caixa: CaixaResumo; tamanho: string }) {
+function ImagemCaixa({ caixa, className }: { caixa: CaixaResumo; className?: string }) {
+  const img = imagemDaCaixa(caixa)
   return (
-    <div className="shrink-0 rounded-[2mm] bg-white p-[2mm]" style={{ width: tamanho }}>
-      <QR texto={`${window.location.origin}/caixas/${caixa.id}`} className="w-full text-black" />
+    <div className={cn('flex shrink-0 items-center justify-center overflow-hidden rounded-[2mm] bg-zinc-100', className)}>
+      {img ? (
+        <img
+          src={img.grande}
+          alt=""
+          className={cn('size-full', img.origem === 'modelo' ? 'object-contain p-[2mm]' : 'object-cover')}
+        />
+      ) : (
+        <Package className="size-1/2 text-zinc-300" strokeWidth={1.25} />
+      )}
     </div>
   )
 }
 
-function AdesivoGeral({ caixa, fundo }: { caixa: CaixaResumo; fundo: Fundo }) {
+function CodigoQR({ caixa, className }: { caixa: CaixaResumo; className?: string }) {
+  return <QR texto={`${window.location.origin}/caixas/${caixa.id}`} className={cn('shrink-0 text-black', className)} />
+}
+
+function Caixinha() {
+  return <span className="inline-block size-[4.5mm] rounded-[0.8mm] border-[0.35mm] border-zinc-700 align-middle" />
+}
+
+// ---------------------------------------------------------------------------
+// Ficha de conferência
+// ---------------------------------------------------------------------------
+
+function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemResumido[] }) {
+  const hex = caixa.cor_hex ?? '#71717a'
+  const specs = especificacoes(caixa)
+  const total = itens.reduce((s, i) => s + i.quantidade, 0)
   return (
-    <Etiqueta fundo={fundo} className="h-[134mm] w-[93mm]">
-      <Faixa caixa={caixa} />
-      <div className="flex flex-1 flex-col items-center justify-center px-[5mm] text-center">
-        <div className="text-[9pt] font-bold uppercase tracking-[0.3em] opacity-60">Caixa</div>
-        <div className="font-display text-[84pt] font-bold leading-[0.9] tabular-nums">{caixa.numero}</div>
-        <div className="mt-[2mm] font-display text-[22pt] font-bold uppercase leading-tight">{caixa.nome}</div>
-      </div>
-      <div className="flex items-end justify-between gap-[3mm] px-[5mm] pb-[5mm]">
-        <div className="text-[8pt] leading-snug opacity-70">
-          Aponte a câmera
-          <br />
-          para ver o conteúdo
+    <div className="folha folha-fluida quebra-pagina flex flex-col text-zinc-950">
+      <header className="flex gap-[6mm] border-b-[0.6mm] border-zinc-900 pb-[4mm]">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="text-[8.5pt] font-bold uppercase tracking-[0.22em] text-zinc-500">
+            Ficha de conferência · {caixa.nome}
+          </div>
+          <div className="mt-[1.5mm] flex items-center gap-[3mm]">
+            <span className="h-[13mm] w-[2.2mm] rounded-full" style={{ background: hex }} />
+            <span className="font-display text-[38pt] font-bold leading-none">Caixa {caixa.numero}</span>
+          </div>
+          <dl className="mt-[3mm] grid grid-cols-[1fr_1fr_1.6fr] gap-x-[5mm] gap-y-[2mm]">
+            {specs.map((e) => (
+              <div key={e.rotulo} className="min-w-0">
+                <dt className="text-[7pt] font-semibold uppercase tracking-[0.15em] text-zinc-500">{e.rotulo}</dt>
+                <dd className="text-[10pt] font-semibold leading-tight tabular-nums">{e.valor}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <CodigoQR caixa={caixa} tamanho="30mm" />
+        <div className="flex shrink-0 flex-col items-end gap-[2mm]">
+          <ImagemCaixa caixa={caixa} className="h-[34mm] w-[46mm]" />
+          <div className="flex items-center gap-[2mm] text-right text-[6.5pt] leading-tight text-zinc-500">
+            Lista sempre
+            <br />
+            atualizada
+            <CodigoQR caixa={caixa} className="w-[13mm]" />
+          </div>
+        </div>
+      </header>
+
+      <div className="flex items-center justify-between py-[3mm] text-[8.5pt] font-semibold uppercase tracking-[0.15em] text-zinc-600">
+        <span>
+          {itens.length} {itens.length === 1 ? 'material' : 'materiais'} · {formatarQtd(total)}{' '}
+          {total === 1 ? 'unidade' : 'unidades'}
+        </span>
+        <span>Marque ✓ quando conferir</span>
       </div>
-    </Etiqueta>
+
+      {itens.length ? (
+        <table className="w-full border-collapse text-[9.5pt]">
+          <thead>
+            <tr className="bg-zinc-900 text-left text-[7.5pt] uppercase tracking-[0.12em] text-white">
+              <th className="w-[8mm] py-[2mm] pl-[2.5mm] font-semibold">#</th>
+              <th className="w-[13mm] py-[2mm] font-semibold">Foto</th>
+              <th className="py-[2mm] pl-[3mm] font-semibold">Material</th>
+              <th className="w-[20mm] py-[2mm] pr-[3mm] text-right font-semibold">Qtd.</th>
+              <th className="w-[22mm] py-[2mm] text-center font-semibold">Encontrado</th>
+              <th className="w-[11mm] py-[2mm] text-center font-semibold">✓</th>
+              <th className="w-[38mm] py-[2mm] pr-[2.5mm] font-semibold">Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {itens.map((i, n) => (
+              <tr key={`${i.material.nome}-${n}`} className="break-inside-avoid border-b-[0.2mm] border-zinc-300 even:bg-zinc-50">
+                <td className="py-[1mm] pl-[2.5mm] align-middle text-[8pt] tabular-nums text-zinc-500">{n + 1}</td>
+                <td className="py-[1mm] align-middle">
+                  <Miniatura src={fotoDoItem(i)} className="size-[10mm] rounded-[1mm]" />
+                </td>
+                <td className="py-[1mm] pl-[3mm] align-middle font-medium uppercase leading-snug">{i.material.nome}</td>
+                <td className="py-[1mm] pr-[3mm] text-right align-middle tabular-nums">
+                  <span className="text-[11pt] font-bold">{formatarQtd(i.quantidade)}</span>{' '}
+                  <span className="text-[8pt] text-zinc-500">{i.material.unidade}</span>
+                </td>
+                <td className="py-[1mm] align-middle">
+                  <span className="mx-auto block h-[6mm] w-[15mm] border-b-[0.3mm] border-zinc-400" />
+                </td>
+                <td className="py-[1mm] text-center align-middle">
+                  <Caixinha />
+                </td>
+                <td className="py-[1mm] pr-[2.5mm] align-middle">
+                  <span className="block h-[6mm] border-b-[0.3mm] border-zinc-300" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="rounded-[2mm] border-[0.3mm] border-dashed border-zinc-400 p-[6mm] text-center text-[10pt] text-zinc-500">
+          Nenhum material cadastrado nesta caixa.
+        </p>
+      )}
+
+      <section className="mt-[5mm] break-inside-avoid rounded-[2mm] border-[0.35mm] border-zinc-500 p-[4mm] text-[9pt]">
+        <div className="flex flex-wrap items-center gap-x-[8mm] gap-y-[2mm]">
+          <span className="text-[7.5pt] font-bold uppercase tracking-[0.15em] text-zinc-500">Resultado</span>
+          <span className="flex items-center gap-[2mm]">
+            <Caixinha /> Completa
+          </span>
+          <span className="flex items-center gap-[2mm]">
+            <Caixinha /> Com pendência
+          </span>
+          <span className="flex items-center gap-[2mm]">
+            <Caixinha /> Lacrada
+          </span>
+        </div>
+        <div className="mt-[4mm] text-[7.5pt] font-bold uppercase tracking-[0.15em] text-zinc-500">Observações gerais</div>
+        <div className="mt-[1mm] h-[6mm] border-b-[0.3mm] border-zinc-300" />
+        <div className="h-[6mm] border-b-[0.3mm] border-zinc-300" />
+        <div className="mt-[5mm] grid grid-cols-[1.4fr_0.8fr_1.2fr] gap-[5mm]">
+          {['Conferido por', 'Data', 'Assinatura'].map((r) => (
+            <div key={r}>
+              <div className="h-[7mm] border-b-[0.35mm] border-zinc-700" />
+              <div className="mt-[1mm] text-[7.5pt] uppercase tracking-[0.12em] text-zinc-500">{r}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }
 
-function AdesivoMateriais({
-  caixa,
-  itens,
-  fundo,
-}: {
-  caixa: CaixaResumo
-  itens: ItemResumido[]
-  fundo: Fundo
-}) {
-  const limite = 30
-  const visiveis = itens.slice(0, limite)
-  const duasColunas = visiveis.length > 12
+// ---------------------------------------------------------------------------
+// Adesivo com materiais
+// ---------------------------------------------------------------------------
+
+function densidade(n: number) {
+  if (n <= 8) return { colunas: 2, foto: '22mm', fonte: '11pt', qtd: '16pt', limite: 8, fotos: true }
+  if (n <= 12) return { colunas: 2, foto: '16mm', fonte: '10pt', qtd: '14pt', limite: 12, fotos: true }
+  if (n <= 21) return { colunas: 3, foto: '13mm', fonte: '8.5pt', qtd: '12pt', limite: 21, fotos: true }
+  return { colunas: 3, foto: '0', fonte: '8.5pt', qtd: '10pt', limite: 54, fotos: false }
+}
+
+function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemResumido[] }) {
+  const hex = caixa.cor_hex ?? '#71717a'
+  const texto = corTexto(hex)
+  const d = densidade(itens.length)
+  const visiveis = itens.slice(0, d.limite)
+  const sobra = itens.length - visiveis.length
+  const v = volumeM3(caixa)
+  const medidas = [
+    { rotulo: 'Dimensões (C × L × A)', valor: dimensoes(caixa) },
+    { rotulo: 'Volume', valor: v ? `${formatarDecimal(v, 4)} m³` : null },
+    { rotulo: 'Peso', valor: caixa.peso_kg ? `${formatarDecimal(caixa.peso_kg)} kg` : null },
+  ].filter((m): m is { rotulo: string; valor: string } => !!m.valor)
+
   return (
-    <Etiqueta fundo={fundo} className="h-[134mm] w-full">
-      <Faixa caixa={caixa} />
-      <div className="flex min-h-0 flex-1 gap-[6mm] p-[6mm]">
-        <div className="flex w-[52mm] shrink-0 flex-col">
-          <div className="text-[9pt] font-bold uppercase tracking-[0.3em] opacity-60">Caixa</div>
-          <div className="font-display text-[72pt] font-bold leading-[0.9] tabular-nums">{caixa.numero}</div>
-          <div className="mt-[2mm] font-display text-[18pt] font-bold uppercase leading-tight">{caixa.nome}</div>
-          <div className="mt-auto">
-            <CodigoQR caixa={caixa} tamanho="30mm" />
-          </div>
+    <div className="folha flex flex-col overflow-hidden text-zinc-950">
+      <div className="flex h-full flex-col overflow-hidden rounded-[4mm] border-[0.5mm] border-zinc-900">
+        <div
+          className="flex h-[12mm] shrink-0 items-center justify-between px-[6mm] text-[12pt] font-bold uppercase tracking-[0.25em]"
+          style={{ background: hex, color: texto }}
+        >
+          <span>{caixa.cor_nome ?? 'Sem cor'}</span>
+          {caixa.tamanho && <span>{ROTULO_TAMANHO[caixa.tamanho]}</span>}
         </div>
-        <div className="min-w-0 flex-1 border-l-[0.3mm] border-current/30 pl-[6mm]">
-          <div className="mb-[2mm] text-[9pt] font-bold uppercase tracking-[0.25em] opacity-60">
-            Conteúdo · {itens.length} {itens.length === 1 ? 'item' : 'itens'}
+
+        <div className="flex shrink-0 gap-[6mm] p-[6mm] pb-[4mm]">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex items-end gap-[4mm]">
+              <span className="font-display text-[96pt] font-bold leading-[0.8] tabular-nums">{caixa.numero}</span>
+              <span className="pb-[2mm] text-[9pt] font-bold uppercase tracking-[0.3em] text-zinc-500">Caixa</span>
+            </div>
+            <div className="mt-[3mm] font-display text-[30pt] font-bold uppercase leading-[0.95]">{caixa.nome}</div>
+            {medidas.length > 0 && (
+              <dl className="mt-[4mm] flex flex-wrap gap-x-[7mm] gap-y-[2mm] rounded-[2mm] bg-zinc-100 px-[4mm] py-[2.5mm]">
+                {medidas.map((m) => (
+                  <div key={m.rotulo}>
+                    <dt className="text-[7pt] font-semibold uppercase tracking-[0.15em] text-zinc-500">{m.rotulo}</dt>
+                    <dd className="text-[12pt] font-bold tabular-nums">{m.valor}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
+          <ImagemCaixa caixa={caixa} className="h-[50mm] w-[64mm] self-start" />
+        </div>
+
+        <div className="flex shrink-0 items-center gap-[3mm] px-[6mm] pb-[2.5mm]">
+          <span className="text-[9pt] font-bold uppercase tracking-[0.25em]">Conteúdo</span>
+          <span className="h-[0.3mm] flex-1 bg-zinc-300" />
+          <span className="text-[9pt] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+            {itens.length} {itens.length === 1 ? 'item' : 'itens'}
+          </span>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden px-[6mm]">
           {itens.length ? (
-            <ul className={cn('gap-x-[6mm] text-[9.5pt] leading-[1.35]', duasColunas && 'columns-2')}>
-              {visiveis.map((i) => (
-                <li key={`${i.caixa_id}-${i.material.nome}`} className="flex break-inside-avoid gap-[2mm]">
-                  <span className="w-[10mm] shrink-0 text-right font-bold tabular-nums">{formatarQtd(i.quantidade)}</span>
-                  <span className="min-w-0">{i.material.nome}</span>
+            <ul
+              className="grid gap-[2.5mm]"
+              style={{ gridTemplateColumns: `repeat(${d.colunas}, minmax(0, 1fr))` }}
+            >
+              {visiveis.map((i, n) => (
+                <li
+                  key={`${i.material.nome}-${n}`}
+                  className={cn(
+                    'flex items-center gap-[2.5mm] rounded-[2mm] border-[0.3mm] border-zinc-300',
+                    d.fotos ? 'p-[1.8mm]' : 'px-[2.5mm] py-[1mm]',
+                  )}
+                >
+                  {d.fotos && (
+                    <Miniatura src={fotoDoItem(i)} tamanho={d.foto} className="rounded-[1.2mm]" />
+                  )}
+                  <span
+                    className="line-clamp-3 min-w-0 flex-1 font-semibold uppercase leading-[1.2]"
+                    style={{ fontSize: d.fonte }}
+                  >
+                    {i.material.nome}
+                  </span>
+                  <span
+                    className="flex shrink-0 flex-col items-center rounded-[1.5mm] bg-zinc-900 px-[2mm] py-[0.8mm] leading-none text-white"
+                    style={{ minWidth: d.fotos ? '11mm' : '8mm' }}
+                  >
+                    <span className="font-display font-bold tabular-nums" style={{ fontSize: d.qtd }}>
+                      {formatarQtd(i.quantidade)}
+                    </span>
+                    {d.fotos && <span className="text-[6pt] uppercase tracking-wider opacity-70">{i.material.unidade}</span>}
+                  </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-[10pt] opacity-60">Conteúdo não cadastrado.</p>
+            <p className="rounded-[2mm] border-[0.3mm] border-dashed border-zinc-400 p-[6mm] text-center text-[10pt] text-zinc-500">
+              Nenhum material cadastrado nesta caixa.
+            </p>
           )}
-          {itens.length > limite && (
-            <p className="mt-[2mm] text-[8.5pt] font-semibold opacity-70">
-              + {itens.length - limite} itens — veja a lista completa pelo QR code.
+          {sobra > 0 && (
+            <p className="mt-[2mm] text-[9pt] font-semibold text-zinc-600">
+              + {sobra} {sobra === 1 ? 'item' : 'itens'} — lista completa pelo QR code.
             </p>
           )}
         </div>
-      </div>
-    </Etiqueta>
-  )
-}
 
-function ListaConferencia({
-  caixas,
-  itensPorCaixa,
-}: {
-  caixas: CaixaResumo[]
-  itensPorCaixa: Map<string, ItemResumido[]>
-}) {
-  return (
-    <div className="folha folha-fluida text-zinc-950">
-      <div className="mb-[6mm] flex items-end justify-between border-b-[0.5mm] border-zinc-900 pb-[3mm]">
-        <div>
-          <div className="text-[9pt] font-bold uppercase tracking-[0.25em] text-zinc-500">Lista de conferência</div>
-          <div className="font-display text-[22pt] font-bold uppercase leading-none">Inventário de caixas</div>
+        <div className="mt-[3mm] flex shrink-0 items-center gap-[4mm] border-t-[0.3mm] border-zinc-300 px-[6mm] py-[4mm]">
+          <CodigoQR caixa={caixa} className="w-[24mm]" />
+          <div className="text-[9pt] leading-snug">
+            <div className="font-bold uppercase tracking-[0.15em]">Aponte a câmera</div>
+            <div className="text-zinc-600">para ver o conteúdo atualizado, as fotos e a última conferência.</div>
+          </div>
+          <div className="ml-auto text-right text-[7.5pt] uppercase tracking-[0.15em] text-zinc-400">
+            Inventário de caixas
+          </div>
         </div>
-        <div className="text-right text-[9pt] text-zinc-600">
-          Gerada em {formatarData(new Date().toISOString())}
-          <br />
-          {caixas.length} {caixas.length === 1 ? 'caixa' : 'caixas'}
-        </div>
-      </div>
-      <div className="flex flex-col gap-[6mm]">
-        {caixas.map((c) => {
-          const itens = itensPorCaixa.get(c.id) ?? []
-          return (
-            <section key={c.id} className="break-inside-avoid rounded-[2mm] border-[0.3mm] border-zinc-400">
-              <header className="flex items-center gap-[4mm] border-b-[0.3mm] border-zinc-400 px-[4mm] py-[2.5mm]">
-                <span className="h-[8mm] w-[2mm] rounded-full" style={{ background: c.cor_hex ?? '#71717a' }} />
-                <span className="font-display text-[20pt] font-bold leading-none tabular-nums">{c.numero}</span>
-                <span className="font-display text-[14pt] font-bold uppercase">{c.nome}</span>
-                <span className="ml-auto text-[9pt] uppercase tracking-wider text-zinc-600">
-                  {[c.cor_nome, c.tamanho ? ROTULO_TAMANHO[c.tamanho] : null, c.local].filter(Boolean).join(' · ')}
-                </span>
-              </header>
-              {itens.length ? (
-                <table className="w-full border-collapse text-[9.5pt]">
-                  <thead>
-                    <tr className="text-left text-[8pt] uppercase tracking-wider text-zinc-500">
-                      <th className="px-[4mm] py-[1.5mm] font-semibold">Material</th>
-                      <th className="w-[18mm] py-[1.5mm] text-right font-semibold">Qtd.</th>
-                      <th className="w-[22mm] py-[1.5mm] text-center font-semibold">Encontrado</th>
-                      <th className="w-[12mm] py-[1.5mm] text-center font-semibold">OK</th>
-                      <th className="w-[45mm] py-[1.5mm] pr-[4mm] font-semibold">Obs.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itens.map((i) => (
-                      <tr key={i.material.nome} className="border-t-[0.2mm] border-zinc-200">
-                        <td className="px-[4mm] py-[1.6mm]">{i.material.nome}</td>
-                        <td className="py-[1.6mm] text-right font-bold tabular-nums">
-                          {formatarQtd(i.quantidade)} <span className="font-normal text-zinc-500">{i.material.unidade}</span>
-                        </td>
-                        <td className="py-[1.6mm] text-center text-zinc-300">______</td>
-                        <td className="py-[1.6mm] text-center">
-                          <span className="inline-block size-[4mm] rounded-[0.6mm] border-[0.3mm] border-zinc-500 align-middle" />
-                        </td>
-                        <td className="py-[1.6mm] pr-[4mm] text-zinc-300">________________</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="px-[4mm] py-[3mm] text-[9.5pt] text-zinc-500">Conteúdo não cadastrado.</p>
-              )}
-              <footer className="flex gap-[6mm] border-t-[0.3mm] border-zinc-400 px-[4mm] py-[2.5mm] text-[9pt] text-zinc-600">
-                <span>Conferido por: ______________________</span>
-                <span>Data: ___/___/______</span>
-                <span>Assinatura: ________________</span>
-              </footer>
-            </section>
-          )
-        })}
       </div>
     </div>
   )
 }
+
+// ---------------------------------------------------------------------------
+// Página
+// ---------------------------------------------------------------------------
 
 export function Imprimir() {
   const [params, setParams] = useSearchParams()
   const { data: caixas = [], isLoading } = useCaixas()
   const { data: cores = [] } = useCores()
+  const { data: itensPorCaixa = new Map<string, ItemResumido[]>(), isLoading: carregandoItens } = useTodosItens()
 
-  const documento: Documento = params.get('doc') === 'lista' ? 'lista' : 'adesivos'
-  const modelo: ModeloAdesivo = params.get('modelo') === 'geral' ? 'geral' : 'materiais'
-  const fundo: Fundo = params.get('fundo') === 'preto' ? 'preto' : 'branco'
+  const documento: Documento = params.get('doc') === 'adesivo' ? 'adesivo' : 'ficha'
   const caixaParam = params.get('caixa') ?? ''
   const tipoParam = params.get('tipo') ?? ''
   const corParam = params.get('cor') ?? ''
-
-  const precisaItens = documento === 'lista' || modelo === 'materiais'
-  const { data: itensPorCaixa = new Map<string, ItemResumido[]>(), isLoading: carregandoItens } = useTodosItens(precisaItens)
 
   function mudar(chave: string, valor: string) {
     const p = new URLSearchParams(params)
@@ -249,9 +387,6 @@ export function Imprimir() {
     [caixas, caixaParam, tipoParam, corParam],
   )
   const caixaUnica = caixaParam ? caixas.find((c) => c.id === caixaParam) : undefined
-
-  const porFolha = modelo === 'geral' ? 4 : 2
-  const folhas = dividir(selecionadas, porFolha)
   const { ref, escala } = useEscala(210)
 
   return (
@@ -261,7 +396,7 @@ export function Imprimir() {
           <div>
             <h1 className="font-display text-4xl font-bold">Imprimir</h1>
             <p className="text-sm text-zinc-500">
-              No iPad: toque em Imprimir e, na tela de impressão, use “Salvar em Arquivos” para gerar o PDF.
+              No iPad: toque em Imprimir / PDF e, na tela de impressão, use “Salvar em Arquivos”.
             </p>
           </div>
           <Botao
@@ -275,51 +410,43 @@ export function Imprimir() {
           </Botao>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          {DOCUMENTOS.map((d) => {
+            const ativo = documento === d.valor
+            const Icone = d.icone
+            return (
+              <button
+                key={d.valor}
+                type="button"
+                aria-pressed={ativo}
+                onClick={() => mudar('doc', d.valor === 'adesivo' ? 'adesivo' : '')}
+                className={cn(
+                  'flex items-start gap-3 rounded-2xl border-2 p-4 text-left transition active:scale-[0.99]',
+                  ativo
+                    ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900'
+                    : 'border-zinc-200 bg-white hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600',
+                )}
+              >
+                <Icone className="mt-0.5 size-6 shrink-0" />
+                <span>
+                  <span className="block font-display text-xl font-bold uppercase leading-tight tracking-wide">
+                    {d.titulo}
+                  </span>
+                  <span className={cn('mt-0.5 block text-sm', ativo ? 'opacity-75' : 'text-zinc-500')}>{d.texto}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
         <div className="cartao grid gap-4 p-4 md:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <span className="rotulo">Documento</span>
-            <Segmentado
-              className="w-full"
-              valor={documento}
-              aoMudar={(v) => mudar('doc', v === 'lista' ? 'lista' : '')}
-              opcoes={[
-                { valor: 'adesivos', rotulo: 'Adesivos' },
-                { valor: 'lista', rotulo: 'Lista de conferência' },
-              ]}
-            />
-          </div>
-          {documento === 'adesivos' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <span className="rotulo">Modelo</span>
-                <Segmentado
-                  className="w-full"
-                  valor={modelo}
-                  aoMudar={(v) => mudar('modelo', v === 'geral' ? 'geral' : '')}
-                  opcoes={[
-                    { valor: 'materiais', rotulo: 'Com materiais' },
-                    { valor: 'geral', rotulo: 'Geral' },
-                  ]}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="rotulo">Fundo</span>
-                <Segmentado
-                  className="w-full"
-                  valor={fundo}
-                  aoMudar={(v) => mudar('fundo', v === 'preto' ? 'preto' : '')}
-                  opcoes={[
-                    { valor: 'branco', rotulo: 'Branco' },
-                    { valor: 'preto', rotulo: 'Preto' },
-                  ]}
-                />
-              </div>
-            </div>
-          )}
           {caixaUnica ? (
             <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-100 px-4 py-3 md:col-span-2 dark:bg-zinc-800">
               <span className="text-sm">
-                Só a caixa <strong>{caixaUnica.numero} · {caixaUnica.nome}</strong>
+                Só a caixa{' '}
+                <strong>
+                  {caixaUnica.numero} · {caixaUnica.nome}
+                </strong>
               </span>
               <Botao tamanho="sm" icone={<X className="size-4" />} onClick={() => mudar('caixa', '')}>
                 Todas
@@ -352,39 +479,28 @@ export function Imprimir() {
         </div>
         <p className="rotulo">
           {selecionadas.length} {selecionadas.length === 1 ? 'caixa' : 'caixas'}
-          {documento === 'adesivos' && selecionadas.length > 0 && ` · ${folhas.length} ${folhas.length === 1 ? 'folha A4' : 'folhas A4'}`}
+          {selecionadas.length > 0 &&
+            (documento === 'adesivo'
+              ? ` · ${selecionadas.length} ${selecionadas.length === 1 ? 'folha A4' : 'folhas A4'}`
+              : ' · uma ficha por caixa')}
         </p>
       </div>
 
-      {isLoading || (precisaItens && carregandoItens) ? (
+      {isLoading || carregandoItens ? (
         <Carregando />
       ) : !selecionadas.length ? (
         <Vazio titulo="Nenhuma caixa selecionada" />
       ) : (
         <div ref={ref} className="area-impressao overflow-hidden">
           <div className="previa-zoom" style={{ zoom: escala }}>
-            {documento === 'lista' ? (
-              <ListaConferencia caixas={selecionadas} itensPorCaixa={itensPorCaixa} />
-            ) : (
-              folhas.map((folha, i) => (
-                <div key={i} className="folha">
-                  <div
-                    className={cn(
-                      'grid h-full content-start gap-[4mm]',
-                      modelo === 'geral' ? 'grid-cols-[93mm_93mm]' : 'grid-cols-1',
-                    )}
-                  >
-                    {folha.map((c) =>
-                      modelo === 'geral' ? (
-                        <AdesivoGeral key={c.id} caixa={c} fundo={fundo} />
-                      ) : (
-                        <AdesivoMateriais key={c.id} caixa={c} itens={itensPorCaixa.get(c.id) ?? []} fundo={fundo} />
-                      ),
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
+            {selecionadas.map((c) => {
+              const itens = itensPorCaixa.get(c.id) ?? []
+              return documento === 'ficha' ? (
+                <FichaConferencia key={c.id} caixa={c} itens={itens} />
+              ) : (
+                <AdesivoMateriais key={c.id} caixa={c} itens={itens} />
+              )
+            })}
           </div>
         </div>
       )}
