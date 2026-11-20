@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Check, CircleCheck, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { adicionarItem, criarMaterial, useMateriais, type DadosMaterial } from '../lib/api'
+import { adicionarItem, criarMaterial, useCores, useMateriais, type DadosMaterial } from '../lib/api'
+import { modeloDoMaterial, ordenarMateriais } from '../lib/materiaisCaixa'
 import type { MaterialResumo } from '../lib/tipos'
 import { cn, mensagemErro, normalizar, plural } from '../lib/util'
 import { useAvisos } from './avisos'
@@ -50,7 +51,9 @@ export function AdicionarMaterial({
 type Etapa = { tipo: 'busca' } | { tipo: 'existente'; material: MaterialResumo } | { tipo: 'novo' }
 
 function Conteudo({ caixaId, jaNaCaixa }: { caixaId: string; jaNaCaixa: Set<string> }) {
-  const { data: materiais = [] } = useMateriais()
+  const { data: materiaisBrutos = [] } = useMateriais()
+  const { data: cores = [] } = useCores()
+  const materiais = useMemo(() => ordenarMateriais(materiaisBrutos, (m) => m.nome, cores), [materiaisBrutos, cores])
   const { avisar } = useAvisos()
   const qc = useQueryClient()
   const [busca, setBusca] = useState('')
@@ -136,7 +139,7 @@ function Conteudo({ caixaId, jaNaCaixa }: { caixaId: string; jaNaCaixa: Set<stri
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
-          <Miniatura caminho={m.fotos?.[0]} className="size-16" />
+          <Miniatura caminho={m.fotos?.[0]} modelo={modeloDoMaterial(m.nome, cores)} className="size-16" />
           <div className="min-w-0">
             <div className="font-display text-2xl font-bold leading-tight">{m.nome}</div>
             <div className="rotulo">
@@ -221,7 +224,7 @@ function Conteudo({ caixaId, jaNaCaixa }: { caixaId: string; jaNaCaixa: Set<stri
                   ja ? 'opacity-50' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800',
                 )}
               >
-                <Miniatura caminho={m.fotos?.[0]} />
+                <Miniatura caminho={m.fotos?.[0]} modelo={modeloDoMaterial(m.nome, cores)} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{m.nome}</span>
                   <span className="block truncate text-xs text-zinc-500">

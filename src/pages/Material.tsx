@@ -12,10 +12,12 @@ import {
   excluirMaterial,
   useAcao,
   useCaixas,
+  useCores,
   useFotos,
   useMateriais,
   useUsoMaterial,
 } from '../lib/api'
+import { modeloDoMaterial } from '../lib/materiaisCaixa'
 import { formatarQtd, mensagemErro, plural } from '../lib/util'
 
 function AdicionarACaixa({
@@ -94,6 +96,7 @@ export function MaterialPagina() {
   const { podeEditar, ehAdmin } = usePermissoes()
   const { confirmar, avisar } = useAvisos()
   const { data: materiais = [], isLoading } = useMateriais()
+  const { data: cores = [] } = useCores()
   const material = materiais.find((m) => m.id === id)
   const { data: usos = [] } = useUsoMaterial(id)
   const { data: fotos = [] } = useFotos(id ? { material_id: id } : null)
@@ -141,7 +144,13 @@ export function MaterialPagina() {
       </Link>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <Galeria fotos={fotos} dono={{ material_id: material.id }} podeEditar={podeEditar} alt={material.nome} />
+        <Galeria
+          fotos={fotos}
+          dono={{ material_id: material.id }}
+          podeEditar={podeEditar}
+          alt={material.nome}
+          modelo={modeloDoMaterial(material.nome, cores)}
+        />
         <div className="flex flex-col gap-4">
           <div>
             {material.categoria && <div className="rotulo">{material.categoria}</div>}

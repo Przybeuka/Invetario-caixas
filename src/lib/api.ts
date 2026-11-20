@@ -115,6 +115,8 @@ export interface ItemResumido {
   caixa_id: string
   quantidade: number
   material: { nome: string; unidade: string; fotos: { caminho_miniatura: string; ordem: number }[] | null }
+  /** Modelo 3D, quando o material é "CAIXA <cor>" (preenchido na impressão). */
+  modelo?: string | null
 }
 
 /** Conteúdo de todas as caixas (para impressão). */

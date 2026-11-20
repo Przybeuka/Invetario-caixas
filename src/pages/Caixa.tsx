@@ -20,6 +20,7 @@ import { useAvisos } from '../components/avisos'
 import { CopiarConteudo } from '../components/CopiarConteudo'
 import { FormCaixa, type ValoresIniciaisCaixa } from '../components/FormCaixa'
 import { Galeria, Miniatura } from '../components/Imagens'
+import { modeloDoMaterial, ordenarMateriais } from '../lib/materiaisCaixa'
 import { SeloEstado, StatusIcone } from '../components/Status'
 import {
   Botao,
@@ -42,6 +43,7 @@ import {
   useCaixas,
   useConferencias,
   useFotos,
+  useCores,
   useItens,
   useValidade,
 } from '../lib/api'
@@ -86,7 +88,7 @@ function QuantidadeItem({ item }: { item: CaixaItem }) {
   return <PassoQuantidade valor={valor} aoMudar={mudar} min={0} />
 }
 
-function LinhaItem({ item, podeEditar }: { item: CaixaItem; podeEditar: boolean }) {
+function LinhaItem({ item, podeEditar, modelo }: { item: CaixaItem; podeEditar: boolean; modelo: string | null }) {
   const { confirmar } = useAvisos()
   const remover = useAcao(() => removerItem(item.id), `${item.material.nome} removido da caixa.`)
   const capa = [...(item.material.fotos ?? [])].sort((a, b) => a.ordem - b.ordem)[0]?.caminho_miniatura
@@ -94,7 +96,7 @@ function LinhaItem({ item, podeEditar }: { item: CaixaItem; podeEditar: boolean 
   return (
     <li className="flex items-center gap-3 py-3">
       <Link to={`/materiais/${item.material_id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <Miniatura caminho={capa} className="size-14" />
+        <Miniatura caminho={capa} modelo={modelo} className="size-14" />
         <span className="min-w-0">
           <span className="block truncate text-[15px] font-semibold">{item.material.nome}</span>
           <span className="block truncate text-xs text-zinc-500">
@@ -205,7 +207,9 @@ export function CaixaPagina() {
   const { data: caixas = [], isLoading } = useCaixas()
   const validade = useValidade()
   const caixa = caixas.find((c) => c.id === id)
-  const { data: itens = [], isLoading: carregandoItens } = useItens(id)
+  const { data: itensBrutos = [], isLoading: carregandoItens } = useItens(id)
+  const { data: cores = [] } = useCores()
+  const itens = useMemo(() => ordenarMateriais(itensBrutos, (i) => i.material.nome, cores), [itensBrutos, cores])
   const { data: fotos = [] } = useFotos(id ? { caixa_id: id } : null)
   const { data: conferencias = [] } = useConferencias(id)
 
@@ -440,7 +444,12 @@ export function CaixaPagina() {
         ) : itens.length ? (
           <ul className="cartao divide-y divide-zinc-100 px-4 dark:divide-zinc-800">
             {itens.map((item) => (
-              <LinhaItem key={item.id} item={item} podeEditar={podeEditar} />
+              <LinhaItem
+                key={item.id}
+                item={item}
+                podeEditar={podeEditar}
+                modelo={modeloDoMaterial(item.material.nome, cores, caixa.tamanho)}
+              />
             ))}
           </ul>
         ) : (

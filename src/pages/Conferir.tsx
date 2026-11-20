@@ -2,8 +2,9 @@ import { ArrowLeft, Check, CheckCheck, Minus, Undo2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Miniatura } from '../components/Imagens'
+import { modeloDoMaterial, ordenarMateriais } from '../lib/materiaisCaixa'
 import { Botao, Carregando, classeBotao, PassoQuantidade, Vazio } from '../components/ui'
-import { registrarConferencia, useAcao, useCaixas, useItens, type ItemConferido } from '../lib/api'
+import { registrarConferencia, useAcao, useCaixas, useCores, useItens, type ItemConferido } from '../lib/api'
 import type { CaixaItem } from '../lib/tipos'
 import { cn, formatarQtd } from '../lib/util'
 
@@ -11,10 +12,12 @@ type Marca = { estado: 'pendente' } | { estado: 'ok' } | { estado: 'falta'; enco
 
 function LinhaConferir({
   item,
+  modelo,
   marca,
   aoMarcar,
 }: {
   item: CaixaItem
+  modelo: string | null
   marca: Marca
   aoMarcar: (m: Marca) => void
 }) {
@@ -29,7 +32,7 @@ function LinhaConferir({
       )}
     >
       <div className="flex items-center gap-3">
-        <Miniatura caminho={capa} className="size-14" />
+        <Miniatura caminho={capa} modelo={modelo} className="size-14" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-semibold">{item.material.nome}</div>
           <div className="text-sm text-zinc-500">
@@ -104,7 +107,9 @@ export function Conferir() {
   const navigate = useNavigate()
   const { data: caixas = [], isLoading } = useCaixas()
   const caixa = caixas.find((c) => c.id === id)
-  const { data: itens = [], isLoading: carregandoItens } = useItens(id)
+  const { data: itensBrutos = [], isLoading: carregandoItens } = useItens(id)
+  const { data: cores = [] } = useCores()
+  const itens = useMemo(() => ordenarMateriais(itensBrutos, (i) => i.material.nome, cores), [itensBrutos, cores])
   const [marcas, setMarcas] = useState<Record<string, Marca>>({})
   const [observacao, setObservacao] = useState('')
   const [pendencia, setPendencia] = useState(false)
@@ -199,6 +204,7 @@ export function Conferir() {
               <LinhaConferir
                 key={item.id}
                 item={item}
+                modelo={modeloDoMaterial(item.material.nome, cores, caixa?.tamanho)}
                 marca={marcaDe(item.id)}
                 aoMarcar={(m) => setMarcas((atual) => ({ ...atual, [item.id]: m }))}
               />

@@ -63,10 +63,23 @@ export function ImagemGrupo({ grupo }: { grupo: Grupo }) {
   return <SemFoto />
 }
 
-export function Miniatura({ caminho, className }: { caminho: string | null | undefined; className?: string }) {
+export function Miniatura({
+  caminho,
+  modelo,
+  className,
+}: {
+  caminho?: string | null
+  /** Id do modelo 3D (tem prioridade sobre a foto). */
+  modelo?: string | null
+  className?: string
+}) {
   return (
     <div className={cn('size-12 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800', className)}>
-      <Imagem src={caminho ? urlFoto(caminho) : null} compacto />
+      {modelo ? (
+        <Imagem src={srcModelo(modelo)} compacto className="object-contain" />
+      ) : (
+        <Imagem src={caminho ? urlFoto(caminho) : null} compacto />
+      )}
     </div>
   )
 }

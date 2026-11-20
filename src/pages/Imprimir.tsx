@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom'
 import { QR } from '../components/QR'
 import { Botao, Campo, Carregando, Vazio } from '../components/ui'
 import { imagemDaCaixa } from '../lib/grupos'
+import { modeloDoMaterial, ordenarMateriais } from '../lib/materiaisCaixa'
+import { srcModelo } from '../lib/modelos'
 import { useCaixas, useCores, useTodosItens, type ItemResumido } from '../lib/api'
 import { urlFoto } from '../lib/supabase'
 import type { CaixaResumo } from '../lib/tipos'
@@ -46,6 +48,7 @@ function useEscala(larguraMm: number) {
 // ---------------------------------------------------------------------------
 
 function fotoDoItem(i: ItemResumido): string | null {
+  if (i.modelo) return srcModelo(i.modelo)
   const f = [...(i.material.fotos ?? [])].sort((a, b) => a.ordem - b.ordem)[0]
   return f ? urlFoto(f.caminho_miniatura) : null
 }
@@ -74,7 +77,7 @@ function Miniatura({ src, className, tamanho }: { src: string | null; className?
       style={tamanho ? { width: tamanho, height: tamanho } : undefined}
     >
       {src ? (
-        <img src={src} alt="" className="size-full object-cover" />
+        <img src={src} alt="" className={cn('size-full', src.startsWith('/modelos/') ? 'object-contain' : 'object-cover')} />
       ) : (
         <Package className="size-1/2 text-zinc-300" strokeWidth={1.25} />
       )}
@@ -274,7 +277,11 @@ function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof 
         style={{ width: `${d.lado}mm`, height: `${d.lado}mm` }}
       >
         {src ? (
-          <img src={src} alt="" className="absolute inset-0 size-full object-cover" />
+          <img
+            src={src}
+            alt=""
+            className={cn('absolute inset-0 size-full', src.startsWith('/modelos/') ? 'object-contain' : 'object-cover')}
+          />
         ) : (
           <Package className="absolute left-1/2 top-1/2 size-[35%] -translate-x-1/2 -translate-y-1/2 text-zinc-300" strokeWidth={1.25} />
         )}
@@ -531,7 +538,10 @@ export function Imprimir() {
         <div ref={ref} className="area-impressao overflow-hidden">
           <div className="previa-zoom" style={{ zoom: escala }}>
             {selecionadas.map((c) => {
-              const itens = itensPorCaixa.get(c.id) ?? []
+              const itens = ordenarMateriais(itensPorCaixa.get(c.id) ?? [], (i) => i.material.nome, cores).map((i) => ({
+                ...i,
+                modelo: modeloDoMaterial(i.material.nome, cores, c.tamanho),
+              }))
               return documento === 'ficha' ? (
                 <FichaConferencia key={c.id} caixa={c} itens={itens} />
               ) : (

@@ -5,7 +5,9 @@ import { usePermissoes } from '../auth/auth'
 import { FormMaterial } from '../components/FormMaterial'
 import { Imagem, Miniatura } from '../components/Imagens'
 import { Botao, CampoBusca, Carregando, Chip, ErroCarga, Segmentado, Vazio } from '../components/ui'
-import { useMateriais } from '../lib/api'
+import { useCores, useMateriais } from '../lib/api'
+import { modeloDoMaterial, ordenarMateriais } from '../lib/materiaisCaixa'
+import { srcModelo } from '../lib/modelos'
 import { urlFoto } from '../lib/supabase'
 import type { MaterialResumo } from '../lib/tipos'
 import { formatarQtd, normalizar, plural } from '../lib/util'
@@ -21,6 +23,7 @@ export function Materiais() {
   const { podeEditar } = usePermissoes()
   const navigate = useNavigate()
   const { data: materiais = [], isLoading, error } = useMateriais()
+  const { data: cores = [] } = useCores()
   const [params, setParams] = useSearchParams()
   const [visao, setVisao] = useState<Visao>(() => {
     try {
@@ -48,13 +51,13 @@ export function Materiais() {
   const termo = normalizar(busca)
   const filtrados = useMemo(
     () =>
-      materiais.filter((m) => {
+      ordenarMateriais(materiais, (m) => m.nome, cores).filter((m) => {
         if (categoria === '__sem' ? m.categoria : categoria && m.categoria !== categoria) return false
         if (!termo) return true
         const alvo = normalizar(`${m.nome} ${m.categoria ?? ''} ${m.descricao ?? ''}`)
         return termo.split(' ').every((p) => alvo.includes(p))
       }),
-    [materiais, categoria, termo],
+    [materiais, cores, categoria, termo],
   )
 
   return (
@@ -133,7 +136,7 @@ export function Materiais() {
               {filtrados.map((m) => (
                 <li key={m.id}>
                   <Link to={`/materiais/${m.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                    <Miniatura caminho={m.fotos?.[0]} className="size-14" />
+                    <Miniatura caminho={m.fotos?.[0]} modelo={modeloDoMaterial(m.nome, cores)} className="size-14" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[15px] font-semibold">{m.nome}</div>
                       <div className="truncate text-xs text-zinc-500">
@@ -149,7 +152,11 @@ export function Materiais() {
               {filtrados.map((m) => (
                 <Link key={m.id} to={`/materiais/${m.id}`} className="cartao overflow-hidden transition hover:shadow-md">
                   <div className="aspect-square overflow-hidden">
-                    <Imagem src={m.fotos?.[0] ? urlFoto(m.fotos[0]) : null} alt={m.nome} />
+                    {modeloDoMaterial(m.nome, cores) ? (
+                      <Imagem src={srcModelo(modeloDoMaterial(m.nome, cores) as string, true)} alt={m.nome} className="object-contain" />
+                    ) : (
+                      <Imagem src={m.fotos?.[0] ? urlFoto(m.fotos[0]) : null} alt={m.nome} />
+                    )}
                   </div>
                   <div className="p-3">
                     <div className="line-clamp-2 text-sm font-semibold leading-snug">{m.nome}</div>
