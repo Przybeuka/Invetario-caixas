@@ -97,7 +97,7 @@ export function Usuarios() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-4xl font-bold">Usuários</h1>
-          <p className="text-sm text-zinc-500">Quem cria conta entra como “sem acesso” até você liberar.</p>
+          <p className="text-sm text-zinc-500">Quem cria conta entra como “conferente”. Promova a editor ou admin quando precisar.</p>
         </div>
         <Link to="/importar-fotos" className={classeBotao('secundario')}>
           <ImageUp className="size-4" /> Importar fotos

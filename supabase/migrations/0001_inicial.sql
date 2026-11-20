@@ -61,7 +61,7 @@ as $$
     false)
 $$;
 
--- Primeiro usuário vira admin; os demais entram como pendentes.
+-- Primeiro usuário vira admin; os demais entram como conferentes (ver 0004).
 create or replace function public.criar_perfil()
 returns trigger
 language plpgsql security definer
