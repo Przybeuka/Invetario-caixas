@@ -28,6 +28,7 @@ export function FormMaterial({
       aoFechar={aoFechar}
       titulo={material ? 'Editar material' : 'Novo material'}
       largura="max-w-xl"
+      protegido
       rodape={
         <div className="flex justify-end gap-2">
           <Botao onClick={aoFechar}>Cancelar</Botao>

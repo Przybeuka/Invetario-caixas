@@ -16,6 +16,7 @@ export function FormTipo({ aberto, aoFechar, grupo }: { aberto: boolean; aoFecha
       titulo="Editar tipo"
       subtitulo={`As mudanças valem para as ${grupo.caixas.length} caixas "${grupo.nome}".`}
       largura="max-w-2xl"
+      protegido
       rodape={
         <div className="flex justify-end gap-2">
           <Botao onClick={aoFechar}>Cancelar</Botao>

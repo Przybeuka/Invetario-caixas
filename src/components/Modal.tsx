@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/util'
+import { useAvisosOpcional } from './avisos'
 
 /** Janela modal baseada em <dialog> (funciona bem no Safari do iPad). */
 export function Modal({
@@ -11,6 +12,7 @@ export function Modal({
   children,
   rodape,
   largura = 'max-w-lg',
+  protegido = false,
 }: {
   aberto: boolean
   aoFechar: () => void
@@ -19,8 +21,32 @@ export function Modal({
   children: ReactNode
   rodape?: ReactNode
   largura?: string
+  /** Pede confirmação antes de fechar (X, fora da janela ou Esc) se algum campo foi mexido. */
+  protegido?: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const avisos = useAvisosOpcional()
+  const [mexeu, setMexeu] = useState(false)
+
+  useEffect(() => {
+    if (!aberto) setMexeu(false)
+  }, [aberto])
+
+  const marcar = useCallback(() => setMexeu(true), [])
+
+  const tentarFechar = useCallback(async () => {
+    if (protegido && mexeu && avisos) {
+      const sair = await avisos.confirmar({
+        titulo: 'Descartar alterações?',
+        mensagem: 'Você mudou alguns campos e ainda não salvou. Se sair agora, essas mudanças serão perdidas.',
+        confirmar: 'Descartar',
+        cancelar: 'Continuar editando',
+        perigo: true,
+      })
+      if (!sair) return
+    }
+    aoFechar()
+  }, [protegido, mexeu, avisos, aoFechar])
 
   useEffect(() => {
     const dialogo = ref.current
@@ -34,10 +60,10 @@ export function Modal({
       ref={ref}
       onCancel={(e) => {
         e.preventDefault()
-        aoFechar()
+        void tentarFechar()
       }}
       onClick={(e) => {
-        if (e.target === ref.current) aoFechar()
+        if (e.target === ref.current) void tentarFechar()
       }}
       className={cn(
         'm-auto w-[calc(100%-1.5rem)] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100',
@@ -53,14 +79,27 @@ export function Modal({
             </div>
             <button
               type="button"
-              onClick={aoFechar}
+              onClick={() => void tentarFechar()}
               aria-label="Fechar"
               className="-mr-2 inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               <X className="size-5" />
             </button>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+            onInput={protegido ? marcar : undefined}
+            onChange={protegido ? marcar : undefined}
+            onClick={
+              protegido
+                ? (e) => {
+                    if ((e.target as HTMLElement).closest('button')) marcar()
+                  }
+                : undefined
+            }
+          >
+            {children}
+          </div>
           {rodape && (
             <footer className="border-t border-zinc-200 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
               {rodape}

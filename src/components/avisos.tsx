@@ -126,6 +126,11 @@ export function ProvedorAvisos({ children }: { children: ReactNode }) {
   )
 }
 
+/** Como useAvisos, mas devolve null fora do provedor (usado pelo Modal, que o provedor também renderiza). */
+export function useAvisosOpcional(): ContextoAvisos | null {
+  return useContext(Ctx)
+}
+
 export function useAvisos(): ContextoAvisos {
   const ctx = useContext(Ctx)
   if (!ctx) throw new Error('useAvisos precisa estar dentro de <ProvedorAvisos>')

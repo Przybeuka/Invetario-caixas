@@ -1,11 +1,13 @@
 import { ArrowLeft, Check, CheckCheck, Minus, Undo2, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useAvisos } from '../components/avisos'
 import { Miniatura } from '../components/Imagens'
 import { modeloDoMaterial, ordenarMateriais } from '../lib/materiaisCaixa'
 import { Botao, Carregando, classeBotao, PassoQuantidade, Vazio } from '../components/ui'
 import { registrarConferencia, useAcao, useCaixas, useCores, useItens, type ItemConferido } from '../lib/api'
 import type { CaixaItem } from '../lib/tipos'
+import { useTravaSaida } from '../lib/travaSaida'
 import { cn, formatarQtd } from '../lib/util'
 
 type Marca =
@@ -144,6 +146,18 @@ function LinhaConferir({
   )
 }
 
+type Rascunho = { marcas: Record<string, Marca>; observacao: string; pendencia: boolean; em: number }
+const chaveRascunho = (caixaId: string) => `conferencia-rascunho:${caixaId}`
+
+function lerRascunho(caixaId: string): Rascunho | null {
+  try {
+    const bruto = localStorage.getItem(chaveRascunho(caixaId))
+    return bruto ? (JSON.parse(bruto) as Rascunho) : null
+  } catch {
+    return null
+  }
+}
+
 export function Conferir() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
@@ -155,6 +169,30 @@ export function Conferir() {
   const [marcas, setMarcas] = useState<Record<string, Marca>>({})
   const [observacao, setObservacao] = useState('')
   const [pendencia, setPendencia] = useState(false)
+  const { avisar, confirmar } = useAvisos()
+  const [recuperadoEm, setRecuperadoEm] = useState<number | null>(null)
+  const [salvo, setSalvo] = useState(false)
+  const restaurou = useRef(false)
+
+  // Rascunho automático: recupera o que já foi marcado nesta caixa (só para itens que ainda existem).
+  useEffect(() => {
+    if (restaurou.current || carregandoItens || !itensBrutos.length) return
+    restaurou.current = true
+    const r = lerRascunho(id)
+    if (!r) return
+    const marcasValidas: Record<string, Marca> = {}
+    for (const i of itensBrutos) {
+      const m = r.marcas?.[i.id]
+      if (!m || m.estado === 'pendente') continue
+      if (m.estado === 'incompleto' && !(m.encontrada >= 1 && m.encontrada < Number(i.quantidade))) continue
+      marcasValidas[i.id] = m
+    }
+    if (!Object.keys(marcasValidas).length && !r.observacao && !r.pendencia) return
+    setMarcas(marcasValidas)
+    setObservacao(r.observacao ?? '')
+    setPendencia(!!r.pendencia)
+    setRecuperadoEm(r.em)
+  }, [id, itensBrutos, carregandoItens])
 
   const marcaDe = (itemId: string): Marca => marcas[itemId] ?? { estado: 'pendente' }
   const verificados = itens.filter((i) => marcaDe(i.id).estado !== 'pendente').length
@@ -163,6 +201,61 @@ export function Conferir() {
     return e === 'incompleto' || e === 'nao'
   }).length
   const completo = verificados === itens.length
+
+  const temProgresso = verificados > 0 || observacao.trim() !== '' || pendencia
+
+  function gravarRascunho() {
+    try {
+      if (temProgresso) {
+        const r: Rascunho = { marcas, observacao, pendencia, em: Date.now() }
+        localStorage.setItem(chaveRascunho(id), JSON.stringify(r))
+      } else {
+        localStorage.removeItem(chaveRascunho(id))
+      }
+    } catch {
+      /* sem armazenamento disponível: segue sem rascunho */
+    }
+  }
+
+  // Salva sozinho a cada mudança (depois de recuperar o rascunho anterior, para não sobrescrevê-lo).
+  useEffect(() => {
+    if (salvo || (!restaurou.current && !!lerRascunho(id))) return
+    const t = setTimeout(gravarRascunho, 300)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marcas, observacao, pendencia, salvo, id])
+
+  useTravaSaida(temProgresso && !salvo, () =>
+    confirmar({
+      titulo: 'Sair da conferência?',
+      mensagem: 'A conferência ainda não foi registrada. O que você marcou fica guardado como rascunho neste aparelho e volta quando você abrir a conferência desta caixa de novo.',
+      confirmar: 'Sair',
+      cancelar: 'Continuar conferindo',
+    }).then((sair) => {
+      if (sair) gravarRascunho()
+      return sair
+    }),
+  )
+
+  async function descartarRascunho() {
+    const ok = await confirmar({
+      titulo: 'Descartar o rascunho?',
+      mensagem: 'Todas as marcações desta conferência serão apagadas.',
+      confirmar: 'Descartar',
+      cancelar: 'Manter',
+      perigo: true,
+    })
+    if (!ok) return
+    setMarcas({})
+    setObservacao('')
+    setPendencia(false)
+    setRecuperadoEm(null)
+    try {
+      localStorage.removeItem(chaveRascunho(id))
+    } catch {
+      /* ignora */
+    }
+  }
 
   const payload = useMemo<ItemConferido[]>(
     () =>
@@ -231,6 +324,18 @@ export function Conferir() {
         )}
       </header>
 
+      {recuperadoEm && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:bg-blue-950/40 dark:text-blue-100">
+          <span className="min-w-0 flex-1">
+            Rascunho recuperado de {new Date(recuperadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.
+            Continue de onde parou.
+          </span>
+          <button type="button" onClick={() => void descartarRascunho()} className="font-semibold underline">
+            Descartar rascunho
+          </button>
+        </div>
+      )}
+
       {itens.length ? (
         <>
           <div className="flex items-center gap-3">
@@ -282,24 +387,46 @@ export function Conferir() {
               Registrar com pendência (ex.: material danificado)
             </label>
           </div>
-          <Botao
-            variante={faltas || pendencia ? 'perigo' : 'primario'}
-            tamanho="lg"
-            disabled={!completo}
-            carregando={salvar.isPending}
-            onClick={() =>
-              salvar.mutate(undefined, { onSuccess: () => navigate(`/caixas/${caixa.id}`, { replace: true }) })
-            }
-            className="sm:min-w-64"
-          >
-            {!completo
-              ? itens.length - verificados === 1
-                ? 'Falta verificar 1 item'
-                : `Faltam ${itens.length - verificados} itens`
-              : faltas || pendencia
-                ? 'Salvar com pendência'
-                : 'Salvar conferência'}
-          </Botao>
+          <div className="flex gap-2">
+            <Botao
+              tamanho="lg"
+              disabled={!temProgresso}
+              onClick={() => {
+                gravarRascunho()
+                avisar('Rascunho salvo neste aparelho.')
+              }}
+            >
+              Salvar rascunho
+            </Botao>
+            <Botao
+              variante={faltas || pendencia ? 'perigo' : 'primario'}
+              tamanho="lg"
+              disabled={!completo}
+              carregando={salvar.isPending}
+              onClick={() =>
+                salvar.mutate(undefined, {
+                  onSuccess: () => {
+                    setSalvo(true)
+                    try {
+                      localStorage.removeItem(chaveRascunho(id))
+                    } catch {
+                      /* ignora */
+                    }
+                    navigate(`/caixas/${caixa.id}`, { replace: true })
+                  },
+                })
+              }
+              className="flex-1 sm:min-w-64"
+            >
+              {!completo
+                ? itens.length - verificados === 1
+                  ? 'Falta verificar 1 item'
+                  : `Faltam ${itens.length - verificados} itens`
+                : faltas || pendencia
+                  ? 'Salvar com pendência'
+                  : 'Salvar conferência'}
+            </Botao>
+          </div>
         </div>
       </div>
     </div>
