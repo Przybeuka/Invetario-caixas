@@ -5,7 +5,6 @@ import type { Grupo } from '../lib/grupos'
 import type { Tamanho } from '../lib/tipos'
 import { cn } from '../lib/util'
 import { Modal } from './Modal'
-import { SeletorModelo } from './SeletorModelo'
 import { Botao, Campo, Ponto, Segmentado } from './ui'
 
 /** Edita de uma vez todas as caixas de um tipo (nome, cor, tamanho e foto do modelo). */
@@ -48,14 +47,13 @@ function Conteudo({ grupo, aoFechar }: { grupo: Grupo; aoFechar: () => void }) {
   const [nome, setNome] = useState(inicial.nome)
   const [corId, setCorId] = useState<string | null | undefined>(inicial.cor_id)
   const [tamanho, setTamanho] = useState<Tamanho | null | undefined>(inicial.tamanho)
-  const [fotoModelo, setFotoModelo] = useState<string | null | undefined>(inicial.foto_modelo)
 
   const salvar = useAcao(async () => {
     const campos: Partial<DadosCaixa> = {}
     if (nome.trim() && nome.trim() !== inicial.nome) campos.nome = nome.trim()
     if (corId !== undefined && corId !== inicial.cor_id) campos.cor_id = corId
     if (tamanho !== undefined && tamanho !== inicial.tamanho) campos.tamanho = tamanho
-    if (fotoModelo !== undefined && fotoModelo !== inicial.foto_modelo) campos.foto_modelo = fotoModelo
+    if (inicial.foto_modelo !== null) campos.foto_modelo = null
     if (!Object.keys(campos).length) return 0
     return atualizarCaixas(
       grupo.caixas.map((c) => c.id),
@@ -74,7 +72,6 @@ function Conteudo({ grupo, aoFechar }: { grupo: Grupo; aoFechar: () => void }) {
     })
   }
 
-  const corSelecionada = cores.find((c) => c.id === corId)
 
   return (
     <form id="form-tipo" onSubmit={enviar} className="flex flex-col gap-5">
@@ -124,14 +121,6 @@ function Conteudo({ grupo, aoFechar }: { grupo: Grupo; aoFechar: () => void }) {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="rotulo">Foto do modelo</span>
-        <SeletorModelo
-          valor={fotoModelo ?? null}
-          aoMudar={setFotoModelo}
-          corPreferida={corSelecionada?.nome ?? grupo.cores[0]?.nome}
-        />
-      </div>
     </form>
   )
 }

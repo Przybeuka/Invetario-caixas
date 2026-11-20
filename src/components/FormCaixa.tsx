@@ -4,7 +4,8 @@ import { atualizarCaixas, criarCaixas, useAcao, useCaixas, useCores, type DadosC
 import type { CaixaResumo, Tamanho } from '../lib/tipos'
 import { cn, formatarDecimal, lerDecimal, normalizar, volumeM3 } from '../lib/util'
 import { Modal } from './Modal'
-import { SeletorModelo } from './SeletorModelo'
+import { modeloPorTamanho } from '../lib/grupos'
+import { srcModelo } from '../lib/modelos'
 import { Botao, Campo, Ponto, Segmentado } from './ui'
 
 export interface ValoresIniciaisCaixa extends Partial<DadosCaixa> {
@@ -74,7 +75,6 @@ function Conteudo({
   const [tamanho, setTamanho] = useState<Tamanho | ''>(caixa?.tamanho ?? inicial?.tamanho ?? '')
   const [local, setLocal] = useState(caixa?.local ?? inicial?.local ?? '')
   const [observacoes, setObservacoes] = useState(caixa?.observacoes ?? inicial?.observacoes ?? '')
-  const [fotoModelo, setFotoModelo] = useState<string | null>(caixa?.foto_modelo ?? inicial?.foto_modelo ?? null)
   const [peso, setPeso] = useState(formatarDecimal(caixa?.peso_kg))
   const [comp, setComp] = useState(formatarDecimal(caixa?.comprimento_cm))
   const [larg, setLarg] = useState(formatarDecimal(caixa?.largura_cm))
@@ -103,7 +103,6 @@ function Conteudo({
     const ref = mesmas[0]
     setCorId((atual) => atual ?? ref.cor_id)
     setTamanho((atual) => atual || ref.tamanho || '')
-    setFotoModelo((atual) => atual ?? ref.foto_modelo)
     setLocal((atual) => atual || ref.local || '')
     setPeso((atual) => atual || formatarDecimal(ref.peso_kg))
     setComp((atual) => atual || formatarDecimal(ref.comprimento_cm))
@@ -131,7 +130,7 @@ function Conteudo({
         tamanho: tamanho || null,
         local: local.trim() || null,
         observacoes: observacoes.trim() || null,
-        foto_modelo: fotoModelo,
+        foto_modelo: null,
         peso_kg: lerDecimal(peso),
         comprimento_cm: lerDecimal(comp),
         largura_cm: lerDecimal(larg),
@@ -283,9 +282,22 @@ function Conteudo({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="rotulo">Foto do modelo</span>
-        <SeletorModelo valor={fotoModelo} aoMudar={setFotoModelo} corPreferida={corSelecionada?.nome} />
-        <span className="text-xs text-zinc-500">Usada enquanto a caixa não tiver foto própria.</span>
+        <span className="rotulo">Foto da caixa</span>
+        {(() => {
+          const modelo = modeloPorTamanho(corSelecionada?.nome ?? null, tamanho || null) ?? corSelecionada?.foto_modelo
+          return (
+            <div className="flex items-center gap-3">
+              <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                {modelo && <img src={srcModelo(modelo)} alt="" className="size-full object-contain" />}
+              </div>
+              <span className="text-xs text-zinc-500">
+                {modelo
+                  ? 'Escolhida automaticamente pela cor e pelo tamanho. Usada enquanto a caixa não tiver foto própria.'
+                  : 'Escolha a cor para definir a foto.'}
+              </span>
+            </div>
+          )
+        })()}
       </div>
 
       <Campo rotulo="Local (opcional)">

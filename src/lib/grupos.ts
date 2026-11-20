@@ -39,7 +39,7 @@ const MODELO_POR_COR: Record<string, Partial<Record<string, string>>> = {
   vermelha: { pequena: 'vermelha-1' },
 }
 
-function modeloPorTamanho(cor: string | null, tamanho: string | null): string | null {
+export function modeloPorTamanho(cor: string | null, tamanho: string | null): string | null {
   if (!cor) return null
   const m = MODELO_POR_COR[normalizar(cor)]
   if (!m) return null
