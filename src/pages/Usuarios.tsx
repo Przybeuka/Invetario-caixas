@@ -1,7 +1,7 @@
-import { UserCheck } from 'lucide-react'
-import { Navigate } from 'react-router-dom'
+import { ImageUp, UserCheck } from 'lucide-react'
+import { Link, Navigate } from 'react-router-dom'
 import { DESCRICAO_PAPEL, ROTULO_PAPEL, useAuth, usePermissoes } from '../auth/auth'
-import { Botao, Carregando, ErroCarga, Secao } from '../components/ui'
+import { Botao, Carregando, classeBotao, ErroCarga, Secao } from '../components/ui'
 import { atualizarPerfil, useAcao, usePerfis } from '../lib/api'
 import type { Papel, Perfil } from '../lib/tipos'
 import { cn, formatarData, iniciais } from '../lib/util'
@@ -94,9 +94,14 @@ export function Usuarios() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="font-display text-4xl font-bold">Usuários</h1>
-        <p className="text-sm text-zinc-500">Quem cria conta entra como “sem acesso” até você liberar.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-4xl font-bold">Usuários</h1>
+          <p className="text-sm text-zinc-500">Quem cria conta entra como “sem acesso” até você liberar.</p>
+        </div>
+        <Link to="/importar-fotos" className={classeBotao('secundario')}>
+          <ImageUp className="size-4" /> Importar fotos
+        </Link>
       </div>
 
       {pendentes.length > 0 && (

@@ -15,6 +15,7 @@ const MaterialPagina = lazy(() => import('./pages/Material').then((m) => ({ defa
 const Conferencias = lazy(() => import('./pages/Conferencias').then((m) => ({ default: m.Conferencias })))
 const Imprimir = lazy(() => import('./pages/Imprimir').then((m) => ({ default: m.Imprimir })))
 const Historico = lazy(() => import('./pages/Historico').then((m) => ({ default: m.Historico })))
+const ImportarFotos = lazy(() => import('./pages/ImportarFotos').then((m) => ({ default: m.ImportarFotos })))
 const Usuarios = lazy(() => import('./pages/Usuarios').then((m) => ({ default: m.Usuarios })))
 const Conta = lazy(() => import('./pages/Conta').then((m) => ({ default: m.Conta })))
 
@@ -104,6 +105,7 @@ export default function App() {
         <Route path="imprimir" element={<Exige nivel="conferente"><Imprimir /></Exige>} />
         <Route path="historico" element={<Exige nivel="editor"><Historico /></Exige>} />
         <Route path="usuarios" element={<Exige nivel="admin"><Usuarios /></Exige>} />
+        <Route path="importar-fotos" element={<Exige nivel="admin"><ImportarFotos /></Exige>} />
         <Route path="conta" element={<Exige nivel="login"><Conta /></Exige>} />
         <Route path="*" element={<NaoEncontrado />} />
       </Route>
