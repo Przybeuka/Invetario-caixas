@@ -228,7 +228,7 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
 }
 
 // ---------------------------------------------------------------------------
-// Adesivo com materiais (130 × 250 mm, centralizado numa folha A4)
+// Adesivo com materiais (130 × 250 mm, página do tamanho exato do adesivo)
 // ---------------------------------------------------------------------------
 
 const ADESIVO = { largura: 130, altura: 250, margem: 5 }
@@ -304,11 +304,11 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
   ].filter((m): m is { rotulo: string; valor: string; largo: boolean } => !!m.valor)
 
   return (
-    <div className="folha flex items-center justify-center text-zinc-950">
-      <div
-        className="flex flex-col overflow-hidden rounded-[3mm] border-[0.3mm] border-dashed border-zinc-400 bg-white"
-        style={{ width: `${ADESIVO.largura}mm`, height: `${ADESIVO.altura}mm`, padding: `${ADESIVO.margem}mm` }}
-      >
+    <div
+      className="adesivo-pagina flex flex-col overflow-hidden bg-white text-zinc-950"
+      style={{ width: `${ADESIVO.largura}mm`, height: `${ADESIVO.altura}mm`, padding: `${ADESIVO.margem}mm` }}
+    >
+      <>
         <span className="-mx-[5mm] -mt-[5mm] mb-[4mm] h-[2.5mm] shrink-0" style={{ background: hex }} />
 
         <div className="flex shrink-0 gap-[3mm]">
@@ -376,7 +376,7 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
             </p>
           )}
         </div>
-      </div>
+      </>
     </div>
   )
 }
@@ -415,10 +415,13 @@ export function Imprimir() {
     [caixas, caixaParam, tipoParam, corParam],
   )
   const caixaUnica = caixaParam ? caixas.find((c) => c.id === caixaParam) : undefined
-  const { ref, escala } = useEscala(210)
+  const { ref, escala } = useEscala(documento === 'adesivo' ? ADESIVO.largura : 210)
 
   return (
     <div className="flex flex-col gap-5">
+      {documento === 'adesivo' && (
+        <style>{`@media print { @page { size: ${ADESIVO.largura}mm ${ADESIVO.altura}mm; margin: 0; } }`}</style>
+      )}
       <div className="nao-imprimir flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -509,7 +512,7 @@ export function Imprimir() {
           {selecionadas.length} {selecionadas.length === 1 ? 'caixa' : 'caixas'}
           {selecionadas.length > 0 &&
             (documento === 'adesivo'
-              ? ` · ${selecionadas.length} ${selecionadas.length === 1 ? 'folha A4' : 'folhas A4'}`
+              ? ` · ${selecionadas.length} ${selecionadas.length === 1 ? 'adesivo' : 'adesivos'} de 13 × 25 cm`
               : ' · uma ficha por caixa')}
         </p>
       </div>

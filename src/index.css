@@ -62,6 +62,12 @@ dialog::backdrop {
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.08);
 }
 
+.adesivo-pagina {
+  margin: 0 auto 8mm;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.08);
+  box-sizing: border-box;
+}
+
 .folha:not(.folha-fluida) {
   height: 297mm;
   overflow: hidden;
@@ -106,6 +112,16 @@ dialog::backdrop {
     page-break-after: always;
   }
   .folha:not(.folha-fluida):last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .adesivo-pagina {
+    margin: 0 !important;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+  }
+  .adesivo-pagina:last-child {
     break-after: auto;
     page-break-after: auto;
   }
