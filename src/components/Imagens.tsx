@@ -109,8 +109,8 @@ export function Galeria({
     [fotos],
   )
   const [indice, setIndice] = useState(0)
-  // Com modelo 3D, ele é a primeira vista; as fotos ficam nas miniaturas para escolher.
-  const [ver3d, setVer3d] = useState(!!modelo3d)
+  // A foto da caixa é a vista principal; o 3D fica na miniatura (toque nela para ampliar).
+  const [ver3d, setVer3d] = useState(false)
   const mostrando3d = !!modelo3d && (ver3d || !ordenadas.length)
   const [ampliada, setAmpliada] = useState(false)
   const [enviando, setEnviando] = useState<{
@@ -254,7 +254,9 @@ export function Galeria({
                 mostrando3d ? 'ring-zinc-900 dark:ring-white' : 'ring-transparent opacity-75 hover:opacity-100',
               )}
             >
-              {modelo && <Imagem src={srcModelo(modelo)} compacto />}
+              <span className="pointer-events-none absolute inset-0">
+                <Modelo3D src={modelo3d} alt="" interativo={false} />
+              </span>
               <span className="absolute inset-x-0 bottom-0 bg-zinc-900/80 py-0.5 text-center text-[10px] font-bold text-white">3D</span>
             </button>
           )}
