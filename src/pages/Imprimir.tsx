@@ -310,7 +310,7 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
 
 const ADESIVO = { largura: 130, altura: 250, margem: 5 }
 /** Altura útil para a grade de materiais (mm), descontado cabeçalho e medidas. */
-const ALTURA_GRADE = 166
+const ALTURA_GRADE = 182
 /** Altura fixa do painel de medidas, para a área dos materiais ser sempre a mesma. */
 const ALTURA_PAINEL = 22
 
@@ -319,46 +319,43 @@ function densidade(nomes: string[]) {
   const gap = 1.8
   const util = ADESIVO.largura - ADESIVO.margem * 2
   const fonte = (c: number) => (c <= 2 ? 10.5 : c === 3 ? 8.8 : c === 4 ? 7.4 : 6.4)
-  // Linhas de nome realmente necessárias (1 a 3), estimadas pela largura da coluna: nomes curtos gastam menos altura.
-  const linhasNome = (c: number) => {
+  const linhaMm = (c: number) => fonte(c) * 0.3528 * 1.12
+  // Linhas de nome que os nomes desta caixa realmente precisam (1 a 3) para a largura da coluna.
+  const precisa = (c: number) => {
     const largura = (util - gap * (c - 1)) / c
     const cpl = Math.max(4, Math.floor(largura / (fonte(c) * 0.3528 * 0.76)))
     return Math.min(3, Math.max(1, ...nomes.map((t) => Math.ceil((t.length + 3) / cpl))))
   }
-  const legenda = (c: number) => fonte(c) * 0.3528 * 1.12 * linhasNome(c) + 1.4
   const qtd = n || 1
-  // Para cada nº de colunas, a foto quadrada é limitada pela largura OU pela altura disponível;
-  // escolhe-se o nº de colunas que deixa a foto maior, preenchendo a área toda.
-  let melhor = { colunas: 6, lado: 0, linhas: 1 }
+  // Testa todas as combinações de colunas (2–6) e linhas de legenda; fica com a foto maior.
+  // Em empate (diferença < 1 mm), prefere mostrar mais linhas do nome.
+  let melhor = { colunas: 6, lado: 0, linhas: 1, nl: 1 }
   for (let c = 2; c <= 6; c++) {
     const linhas = Math.ceil(qtd / c)
     const porLargura = (util - gap * (c - 1)) / c
-    const porAltura = (ALTURA_GRADE - gap * (linhas - 1)) / linhas - legenda(c)
-    const lado = Math.min(porLargura, porAltura)
-    if (lado > melhor.lado + 0.01) melhor = { colunas: c, lado, linhas }
+    for (let nl = precisa(c); nl >= Math.min(2, precisa(c)); nl--) {
+      const porAltura = (ALTURA_GRADE - gap * (linhas - 1)) / linhas - (linhaMm(c) * nl + 1.2)
+      const lado = Math.min(porLargura, porAltura)
+      if (lado > melhor.lado + 1 || (lado > melhor.lado - 1 && lado >= melhor.lado && nl >= melhor.nl))
+        melhor = { colunas: c, lado, linhas, nl }
+    }
   }
-  let { colunas, lado, linhas } = melhor
-  const larguraColuna = (util - gap * (colunas - 1)) / colunas
-  // Não cabe nem com 6 colunas: mostra só o que cabe (o resto vai para o QR code).
+  let { colunas, lado, nl } = melhor
   let limite = qtd
   if (lado < 14) {
     colunas = 6
+    nl = 2
     lado = (util - gap * 5) / 6
-    linhas = Math.max(1, Math.floor((ALTURA_GRADE + gap) / (lado + legenda(6) + gap)))
-    limite = linhas * 6
+    limite = 6 * Math.max(1, Math.floor((ALTURA_GRADE + gap) / (lado + linhaMm(6) * nl + 1.2 + gap)))
   }
-  // Sobra de altura vira respiro entre as linhas (até um limite), para a grade ocupar o espaço.
-  const sobraAltura = ALTURA_GRADE - (linhas * (lado + legenda(colunas)) + gap * (linhas - 1))
-  const gapLinha = linhas > 1 ? Math.min(gap + sobraAltura / (linhas - 1), 12) : gap
+  const escala = 1
   return {
     colunas,
     gap,
-    gapLinha,
     lado,
-    larguraColuna: lado < 14 ? lado : larguraColuna,
-    legenda: legenda(colunas),
-    linhasNome: linhasNome(colunas),
-    nome: `${fonte(colunas)}pt`,
+    legenda: linhaMm(colunas) * escala * nl + 1.2,
+    linhasNome: nl,
+    nome: `${(fonte(colunas) * escala).toFixed(1)}pt`,
     qtd: colunas <= 2 ? '11pt' : colunas === 3 ? '9.5pt' : colunas === 4 ? '8pt' : '7pt',
     limite,
   }
@@ -392,7 +389,7 @@ function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof 
         </span>
       </div>
       <span
-        className="pt-[1.2mm] font-bold uppercase leading-[1.12]"
+        className="pt-[1mm] font-bold uppercase leading-[1.12]"
         style={{
           fontSize: d.nome,
           height: `${d.legenda}mm`,
@@ -425,27 +422,23 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
       style={{ width: `${ADESIVO.largura}mm`, height: `${ADESIVO.altura}mm`, padding: `${ADESIVO.margem}mm` }}
     >
       <>
-        <span className="-mx-[5mm] -mt-[5mm] mb-[4mm] h-[2.5mm] shrink-0" style={{ background: hex }} />
+        <span className="-mx-[5mm] -mt-[5mm] mb-[3mm] h-[2.5mm] shrink-0" style={{ background: hex }} />
 
-        <div className="flex shrink-0 gap-[3mm]">
+        <div className="flex shrink-0 items-end gap-[3mm]">
           <div className="flex min-w-0 flex-1 flex-col justify-end">
-            <span className="font-display text-[88pt] font-bold leading-[0.78] tabular-nums">{caixa.numero}</span>
-            <span className="mt-[3mm] font-display text-[16pt] font-bold uppercase leading-[1.05]">
+            <span className="font-display text-[66pt] font-bold leading-[0.78] tabular-nums">{caixa.numero}</span>
+            <span className="mt-[2mm] font-display text-[15pt] font-bold uppercase leading-[1.05]">
               Caixa {caixa.nome}
-            </span>
-            <span className="mt-[1mm] flex items-center gap-[1.5mm] text-[8pt] font-bold uppercase tracking-[0.18em] text-zinc-600">
-              <span className="size-[3mm] rounded-full ring-[0.3mm] ring-black/20" style={{ background: hex }} />
-              {[caixa.cor_nome, caixa.tamanho ? ROTULO_TAMANHO[caixa.tamanho] : null].filter(Boolean).join(' · ')}
             </span>
           </div>
           <div className="flex shrink-0 flex-col items-center justify-end gap-[0.8mm]">
-            <CodigoQR caixa={caixa} className="w-[20mm]" />
+            <CodigoQR caixa={caixa} className="w-[18mm]" />
             <span className="text-[5pt] font-semibold uppercase tracking-[0.12em] text-zinc-500">Ver conteúdo</span>
           </div>
-          <ImagemCaixa caixa={caixa} className="size-[44mm]" />
+          <ImagemCaixa caixa={caixa} className="size-[30mm]" />
         </div>
 
-        <div data-painel className="mt-[3mm] flex shrink-0 items-stretch gap-[3mm] rounded-[2mm] bg-zinc-100 p-[2.5mm]" style={{ height: `${ALTURA_PAINEL}mm` }}>
+        <div data-painel className="mt-[2.5mm] flex shrink-0 items-stretch gap-[3mm] rounded-[2mm] bg-zinc-100 p-[2.5mm]" style={{ height: `${ALTURA_PAINEL}mm` }}>
           <dl className="flex min-w-0 flex-1 flex-col justify-center gap-[1.8mm]">
             {medidas.length ? (
               medidas.map((m) => (
@@ -471,11 +464,11 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
           ) : null}
         </div>
 
-        <div data-grade className="mt-[3mm] min-h-0 flex-1 overflow-hidden">
+        <div data-grade className="mt-[2.5mm] min-h-0 flex-1 overflow-hidden">
           {itens.length ? (
             <ul
               className="grid justify-evenly"
-              style={{ gridTemplateColumns: `repeat(${d.colunas}, ${d.lado}mm)`, columnGap: `${d.gap}mm`, rowGap: `${d.gapLinha}mm` }}
+              style={{ gridTemplateColumns: `repeat(${d.colunas}, ${d.lado}mm)`, columnGap: `${d.gap}mm`, rowGap: `${d.gap}mm` }}
             >
               {visiveis.map((i, n) => (
                 <CartaoMaterial key={`${i.material.nome}-${n}`} item={i} d={d} />
