@@ -338,14 +338,17 @@ function distribuir(itens: ItemResumido[]) {
   // as fotos encolhem por igual e as linhas mantêm as pontas alinhadas (sobra vira espaço entre as fotos).
   // Fica a combinação com a maior área total de fotos.
   let melhor: { linhas: Linha[]; altura: number; area: number } | null = null
-  // Todas as divisões em linhas de 1 a 6 itens, em ordem crescente (linhas menores em cima),
-  // com diferença de no máximo 2 itens entre a menor e a maior linha.
+  // Quantidade que se divide em linhas iguais (ex.: 9 = 3·3·3): só linhas iguais.
+  // Número primo (ex.: 7, 11): linhas que diferem no máximo 1 item (ex.: 3·4, 3·4·4), menores em cima.
+  const primo = n > 3 && Array.from({ length: n - 2 }, (_, i) => i + 2).every((d) => n % d !== 0)
   const combinacoes: number[][] = []
+  if (!primo) for (let k = 1; k <= 6; k++) if (n % k === 0 && (k > 1 || n <= 2)) combinacoes.push(Array(n / k).fill(k))
   const gerar = (resta: number, min: number, atual: number[]) => {
     if (!resta) return void combinacoes.push(atual)
-    for (let k = min; k <= Math.min(6, resta); k++) if (!atual.length || k - atual[0] <= 2) gerar(resta - k, k, [...atual, k])
+    for (let k = min; k <= Math.min(6, resta); k++) if (!atual.length || k - atual[0] <= 1) gerar(resta - k, k, [...atual, k])
   }
-  gerar(n, 1, [])
+  if (primo || !combinacoes.length) gerar(n, 2, [])
+  if (!combinacoes.length) gerar(n, 1, [])
   for (const ks of combinacoes) {
     const r = ks.length
     for (const reduzir of [false, true]) {
@@ -392,38 +395,31 @@ function distribuir(itens: ItemResumido[]) {
 
 function CartaoMaterial({ item, l }: { item: ItemResumido; l: Linha }) {
   const src = fotoDoItem(item)
-  // Mais de uma unidade: efeito leve de cartas sobrepostas.
+  // Mais de uma unidade: efeito leve de cartas sobrepostas (cópias da mesma foto atrás, para baixo e à direita).
   const pilha = Number(item.quantidade) >= 2
-  const recuo = pilha ? Math.max(1, l.lado * 0.035) : 0
+  const recuo = pilha ? Math.max(0.9, l.lado * 0.03) : 0
   const foto = l.lado - recuo * 2
+  const conteudo = src ? (
+    <img src={src} alt="" className={cn('absolute inset-0 size-full', src.startsWith('/modelos/') ? 'object-contain' : 'object-cover')} />
+  ) : (
+    <Package className="absolute left-1/2 top-1/2 size-[35%] -translate-x-1/2 -translate-y-1/2 text-zinc-300" strokeWidth={1.25} />
+  )
+  const carta = 'absolute overflow-hidden rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100'
   return (
     <li className="flex min-w-0 flex-col" style={{ width: `${l.lado}mm` }}>
       <div className="relative" style={{ width: `${l.lado}mm`, height: `${l.lado}mm` }}>
-        {pilha && (
-          <>
-            <span
-              className="absolute rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-200"
-              style={{ width: `${foto}mm`, height: `${foto}mm`, left: `${recuo * 2}mm`, top: 0 }}
-            />
-            <span
-              className="absolute rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
-              style={{ width: `${foto}mm`, height: `${foto}mm`, left: `${recuo}mm`, top: `${recuo}mm` }}
-            />
-          </>
-        )}
-        <div
-          className="absolute overflow-hidden rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
-          style={{ width: `${foto}mm`, height: `${foto}mm`, left: 0, top: `${recuo * 2}mm` }}
-        >
-          {src ? (
-            <img
-              src={src}
-              alt=""
-              className={cn('absolute inset-0 size-full', src.startsWith('/modelos/') ? 'object-contain' : 'object-cover')}
-            />
-          ) : (
-            <Package className="absolute left-1/2 top-1/2 size-[35%] -translate-x-1/2 -translate-y-1/2 text-zinc-300" strokeWidth={1.25} />
-          )}
+        {pilha &&
+          [2, 1].map((n) => (
+            <div
+              key={n}
+              className={cn(carta, 'border-white')}
+              style={{ width: `${foto}mm`, height: `${foto}mm`, left: `${recuo * n}mm`, top: `${recuo * n}mm`, filter: `brightness(${1 - n * 0.12})` }}
+            >
+              {conteudo}
+            </div>
+          ))}
+        <div className={cn(carta, pilha && 'border-white shadow-[0_0.3mm_0.8mm_rgba(0,0,0,0.25)]')} style={{ width: `${foto}mm`, height: `${foto}mm`, left: 0, top: 0 }}>
+          {conteudo}
           <span
             className="absolute right-[1.2mm] top-[1.2mm] flex items-baseline gap-[0.6mm] rounded-[1.2mm] border-[0.45mm] border-black bg-white px-[1.4mm] py-[0.3mm] font-display font-bold leading-none text-black tabular-nums"
             style={{ fontSize: l.qtd }}
