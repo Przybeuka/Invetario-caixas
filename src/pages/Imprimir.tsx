@@ -314,88 +314,132 @@ const ALTURA_GRADE = 182
 /** Altura fixa do painel de medidas, para a área dos materiais ser sempre a mesma. */
 const ALTURA_PAINEL = 22
 
-function densidade(nomes: string[]) {
-  const n = nomes.length
+type Linha = { k: number; lado: number; nl: number; fonte: number; qtd: string; itens: ItemResumido[] }
+
+/**
+ * Distribui os materiais em linhas que ocupam sempre a largura toda (mesmo alinhamento lateral).
+ * As linhas podem ter quantidades diferentes (ex.: 3·4·4 ou 2·3·3·3); as linhas com menos itens
+ * ficam no topo e têm fotos maiores. Escolhe a combinação que mais preenche a altura do adesivo.
+ */
+function distribuir(itens: ItemResumido[]) {
   const gap = 1.8
   const util = ADESIVO.largura - ADESIVO.margem * 2
-  const fonte = (c: number) => (c <= 2 ? 10.5 : c === 3 ? 8.8 : c === 4 ? 7.4 : 6.4)
-  const linhaMm = (c: number) => fonte(c) * 0.3528 * 1.12
-  // Linhas de nome que os nomes desta caixa realmente precisam (1 a 3) para a largura da coluna.
-  const precisa = (c: number) => {
-    const largura = (util - gap * (c - 1)) / c
-    const cpl = Math.max(4, Math.floor(largura / (fonte(c) * 0.3528 * 0.76)))
+  const fonte = (k: number) => (k <= 2 ? 10.5 : k === 3 ? 8.8 : k === 4 ? 7.4 : 6.4)
+  const lado = (k: number) => (util - gap * (Math.max(k, 2) - 1)) / Math.max(k, 2)
+  const linhaMm = (k: number) => fonte(k) * 0.3528 * 1.12
+  const precisa = (k: number, nomes: string[]) => {
+    const cpl = Math.max(4, Math.floor(lado(k) / (fonte(k) * 0.3528 * 0.76)))
     return Math.min(3, Math.max(1, ...nomes.map((t) => Math.ceil((t.length + 3) / cpl))))
   }
-  const qtd = n || 1
-  // Testa todas as combinações de colunas (2–6) e linhas de legenda; fica com a foto maior.
-  // Em empate (diferença < 1 mm), prefere mostrar mais linhas do nome.
-  let melhor = { colunas: 6, lado: 0, linhas: 1, nl: 1 }
-  for (let c = 2; c <= 6; c++) {
-    const linhas = Math.ceil(qtd / c)
-    const porLargura = (util - gap * (c - 1)) / c
-    for (let nl = precisa(c); nl >= Math.min(2, precisa(c)); nl--) {
-      const porAltura = (ALTURA_GRADE - gap * (linhas - 1)) / linhas - (linhaMm(c) * nl + 1.2)
-      const lado = Math.min(porLargura, porAltura)
-      if (lado > melhor.lado + 1 || (lado > melhor.lado - 1 && lado >= melhor.lado && nl >= melhor.nl))
-        melhor = { colunas: c, lado, linhas, nl }
+  const n = itens.length
+  if (!n) return { linhas: [] as Linha[], gap, sobra: 0 }
+
+  // Testa de 1 até n linhas (quantidades por linha diferindo no máximo 1). Se a combinação passar da altura,
+  // as fotos encolhem por igual e as linhas mantêm as pontas alinhadas (sobra vira espaço entre as fotos).
+  // Fica a combinação com a maior área total de fotos.
+  let melhor: { linhas: Linha[]; altura: number; area: number } | null = null
+  // Todas as divisões em linhas de 1 a 6 itens, em ordem crescente (linhas menores em cima),
+  // com diferença de no máximo 2 itens entre a menor e a maior linha.
+  const combinacoes: number[][] = []
+  const gerar = (resta: number, min: number, atual: number[]) => {
+    if (!resta) return void combinacoes.push(atual)
+    for (let k = min; k <= Math.min(6, resta); k++) if (!atual.length || k - atual[0] <= 2) gerar(resta - k, k, [...atual, k])
+  }
+  gerar(n, 1, [])
+  for (const ks of combinacoes) {
+    const r = ks.length
+    for (const reduzir of [false, true]) {
+      let pos = 0
+      const linhas: Linha[] = ks.map((k) => {
+        const grupo = itens.slice(pos, (pos += k))
+        const p = precisa(k, grupo.map((i) => i.material.nome))
+        return {
+          k,
+          lado: lado(k),
+          nl: reduzir ? Math.min(2, p) : p,
+          fonte: fonte(k),
+          qtd: k <= 2 ? '11pt' : k === 3 ? '9.5pt' : k === 4 ? '8pt' : '7pt',
+          itens: grupo,
+        }
+      })
+      const legendas = linhas.reduce((s, l) => s + linhaMm(l.k) * l.nl + 1, 0) + gap * (r - 1)
+      const fotos = linhas.reduce((s, l) => s + l.lado, 0)
+      const escala = Math.min(1, (ALTURA_GRADE - legendas) / fotos)
+      if (escala <= 0) continue
+      linhas.forEach((l) => (l.lado *= escala))
+      const area = linhas.reduce((s, l) => s + l.itens.length * l.lado * l.lado, 0)
+      // nomes com menos linhas só se ganharem bastante área
+      const nota = reduzir ? area * 0.92 : area
+      if (Math.min(...linhas.map((l) => l.lado)) >= 14 && (!melhor || nota > melhor.area))
+        melhor = { linhas, altura: legendas + fotos * escala, area: nota }
     }
   }
-  let { colunas, lado, nl } = melhor
-  let limite = qtd
-  if (lado < 14) {
-    colunas = 6
-    nl = 2
-    lado = (util - gap * 5) / 6
-    limite = 6 * Math.max(1, Math.floor((ALTURA_GRADE + gap) / (lado + linhaMm(6) * nl + 1.2 + gap)))
+  if (!melhor) {
+    // Não cabe: 6 por linha e o resto vai para o QR code.
+    const linhas: Linha[] = []
+    let usado = 0
+    for (let pos = 0; pos < n; pos += 6) {
+      const h = lado(6) + linhaMm(6) * 2 + 1 + (linhas.length ? gap : 0)
+      if (usado + h > ALTURA_GRADE) break
+      usado += h
+      linhas.push({ k: 6, lado: lado(6), nl: 2, fonte: fonte(6), qtd: '7pt', itens: itens.slice(pos, pos + 6) })
+    }
+    melhor = { linhas, altura: usado, area: 0 }
   }
-  const escala = 1
-  return {
-    colunas,
-    gap,
-    lado,
-    legenda: linhaMm(colunas) * escala * nl + 1.2,
-    linhasNome: nl,
-    nome: `${(fonte(colunas) * escala).toFixed(1)}pt`,
-    qtd: colunas <= 2 ? '11pt' : colunas === 3 ? '9.5pt' : colunas === 4 ? '8pt' : '7pt',
-    limite,
-  }
+  const mostrados = melhor.linhas.reduce((s, l) => s + l.itens.length, 0)
+  return { linhas: melhor.linhas, gap, sobra: n - mostrados }
 }
 
-function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof densidade> }) {
+function CartaoMaterial({ item, l }: { item: ItemResumido; l: Linha }) {
   const src = fotoDoItem(item)
+  // Mais de uma unidade: efeito leve de cartas sobrepostas.
+  const pilha = Number(item.quantidade) >= 2
+  const recuo = pilha ? Math.max(1, l.lado * 0.035) : 0
+  const foto = l.lado - recuo * 2
   return (
-    <li className="flex min-w-0 flex-col" style={{ width: `${d.lado}mm` }}>
-      <div
-        className="relative overflow-hidden rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
-        style={{ width: `${d.lado}mm`, height: `${d.lado}mm` }}
-      >
-        {src ? (
-          <img
-            src={src}
-            alt=""
-            className={cn('absolute inset-0 size-full', src.startsWith('/modelos/') ? 'object-contain' : 'object-cover')}
-          />
-        ) : (
-          <Package className="absolute left-1/2 top-1/2 size-[35%] -translate-x-1/2 -translate-y-1/2 text-zinc-300" strokeWidth={1.25} />
+    <li className="flex min-w-0 flex-col" style={{ width: `${l.lado}mm` }}>
+      <div className="relative" style={{ width: `${l.lado}mm`, height: `${l.lado}mm` }}>
+        {pilha && (
+          <>
+            <span
+              className="absolute rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-200"
+              style={{ width: `${foto}mm`, height: `${foto}mm`, left: `${recuo * 2}mm`, top: 0 }}
+            />
+            <span
+              className="absolute rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
+              style={{ width: `${foto}mm`, height: `${foto}mm`, left: `${recuo}mm`, top: `${recuo}mm` }}
+            />
+          </>
         )}
-        <span
-          className="absolute right-[1.2mm] top-[1.2mm] flex items-baseline gap-[0.6mm] rounded-[1.2mm] border-[0.45mm] border-black bg-white px-[1.4mm] py-[0.3mm] font-display font-bold leading-none text-black tabular-nums"
-          style={{ fontSize: d.qtd }}
+        <div
+          className="absolute overflow-hidden rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
+          style={{ width: `${foto}mm`, height: `${foto}mm`, left: 0, top: `${recuo * 2}mm` }}
         >
-          {formatarQtd(item.quantidade)}
-          {item.material.unidade !== 'un' && (
-            <span className="text-[0.55em] font-semibold uppercase">{item.material.unidade}</span>
+          {src ? (
+            <img
+              src={src}
+              alt=""
+              className={cn('absolute inset-0 size-full', src.startsWith('/modelos/') ? 'object-contain' : 'object-cover')}
+            />
+          ) : (
+            <Package className="absolute left-1/2 top-1/2 size-[35%] -translate-x-1/2 -translate-y-1/2 text-zinc-300" strokeWidth={1.25} />
           )}
-        </span>
+          <span
+            className="absolute right-[1.2mm] top-[1.2mm] flex items-baseline gap-[0.6mm] rounded-[1.2mm] border-[0.45mm] border-black bg-white px-[1.4mm] py-[0.3mm] font-display font-bold leading-none text-black tabular-nums"
+            style={{ fontSize: l.qtd }}
+          >
+            {formatarQtd(item.quantidade)}
+            {item.material.unidade !== 'un' && <span className="text-[0.55em] font-semibold uppercase">{item.material.unidade}</span>}
+          </span>
+        </div>
       </div>
       <span
         className="pt-[1mm] font-bold uppercase leading-[1.12]"
         style={{
-          fontSize: d.nome,
-          height: `${d.legenda}mm`,
+          fontSize: `${l.fonte}pt`,
           display: '-webkit-box',
           WebkitBoxOrient: 'vertical',
-          WebkitLineClamp: d.linhasNome,
+          WebkitLineClamp: l.nl,
           overflow: 'hidden',
         }}
       >
@@ -407,9 +451,7 @@ function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof 
 
 function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemResumido[] }) {
   const hex = caixa.cor_hex ?? '#71717a'
-  const d = densidade(itens.map((i) => i.material.nome))
-  const visiveis = itens.slice(0, d.limite)
-  const sobra = itens.length - visiveis.length
+  const { linhas, gap, sobra } = distribuir(itens)
   const v = volumeM3(caixa)
   const medidas = [
     { rotulo: 'Dimensões (C × L × Alt.)', valor: dimensoes(caixa), largo: true },
@@ -466,14 +508,15 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
 
         <div data-grade className="mt-[2.5mm] min-h-0 flex-1 overflow-hidden">
           {itens.length ? (
-            <ul
-              className="grid justify-evenly"
-              style={{ gridTemplateColumns: `repeat(${d.colunas}, ${d.lado}mm)`, columnGap: `${d.gap}mm`, rowGap: `${d.gap}mm` }}
-            >
-              {visiveis.map((i, n) => (
-                <CartaoMaterial key={`${i.material.nome}-${n}`} item={i} d={d} />
+            <div className="flex flex-col" style={{ gap: `${gap}mm` }}>
+              {linhas.map((l, li) => (
+                <ul key={li} className={cn('flex', l.k === 1 ? 'justify-center' : 'justify-between')}>
+                  {l.itens.map((i, n) => (
+                    <CartaoMaterial key={`${i.material.nome}-${n}`} item={i} l={l} />
+                  ))}
+                </ul>
               ))}
-            </ul>
+            </div>
           ) : (
             <p className="rounded-[2mm] border-[0.3mm] border-dashed border-zinc-400 p-[6mm] text-center text-[9pt] text-zinc-500">
               Nenhum material cadastrado nesta caixa.
