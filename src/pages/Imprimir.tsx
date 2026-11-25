@@ -314,12 +314,18 @@ const ALTURA_GRADE = 166
 /** Altura fixa do painel de medidas, para a área dos materiais ser sempre a mesma. */
 const ALTURA_PAINEL = 22
 
-function densidade(n: number) {
-  const gap = 2.5
+function densidade(nomes: string[]) {
+  const n = nomes.length
+  const gap = 1.8
   const util = ADESIVO.largura - ADESIVO.margem * 2
   const fonte = (c: number) => (c <= 2 ? 10.5 : c === 3 ? 8.8 : c === 4 ? 7.4 : 6.4)
-  // até 3 linhas de nome, mais um respiro acima
-  const legenda = (c: number) => fonte(c) * 0.3528 * 1.12 * 3 + 1.4
+  // Linhas de nome realmente necessárias (1 a 3), estimadas pela largura da coluna: nomes curtos gastam menos altura.
+  const linhasNome = (c: number) => {
+    const largura = (util - gap * (c - 1)) / c
+    const cpl = Math.max(4, Math.floor(largura / (fonte(c) * 0.3528 * 0.76)))
+    return Math.min(3, Math.max(1, ...nomes.map((t) => Math.ceil((t.length + 3) / cpl))))
+  }
+  const legenda = (c: number) => fonte(c) * 0.3528 * 1.12 * linhasNome(c) + 1.4
   const qtd = n || 1
   // Para cada nº de colunas, a foto quadrada é limitada pela largura OU pela altura disponível;
   // escolhe-se o nº de colunas que deixa a foto maior, preenchendo a área toda.
@@ -351,6 +357,7 @@ function densidade(n: number) {
     lado,
     larguraColuna: lado < 14 ? lado : larguraColuna,
     legenda: legenda(colunas),
+    linhasNome: linhasNome(colunas),
     nome: `${fonte(colunas)}pt`,
     qtd: colunas <= 2 ? '11pt' : colunas === 3 ? '9.5pt' : colunas === 4 ? '8pt' : '7pt',
     limite,
@@ -385,8 +392,15 @@ function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof 
         </span>
       </div>
       <span
-        className="line-clamp-3 pt-[1.2mm] font-bold uppercase leading-[1.12]"
-        style={{ fontSize: d.nome, height: `${d.legenda}mm` }}
+        className="pt-[1.2mm] font-bold uppercase leading-[1.12]"
+        style={{
+          fontSize: d.nome,
+          height: `${d.legenda}mm`,
+          display: '-webkit-box',
+          WebkitBoxOrient: 'vertical',
+          WebkitLineClamp: d.linhasNome,
+          overflow: 'hidden',
+        }}
       >
         {item.material.nome}
       </span>
@@ -396,7 +410,7 @@ function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof 
 
 function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemResumido[] }) {
   const hex = caixa.cor_hex ?? '#71717a'
-  const d = densidade(itens.length)
+  const d = densidade(itens.map((i) => i.material.nome))
   const visiveis = itens.slice(0, d.limite)
   const sobra = itens.length - visiveis.length
   const v = volumeM3(caixa)
