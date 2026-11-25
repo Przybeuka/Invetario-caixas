@@ -310,7 +310,9 @@ function FichaConferencia({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
 
 const ADESIVO = { largura: 130, altura: 250, margem: 5 }
 /** Altura útil para a grade de materiais (mm), descontado cabeçalho e medidas. */
-const ALTURA_GRADE = 165
+const ALTURA_GRADE = 166
+/** Altura fixa do painel de medidas, para a área dos materiais ser sempre a mesma. */
+const ALTURA_PAINEL = 22
 
 function densidade(n: number) {
   const gap = 2.5
@@ -318,28 +320,47 @@ function densidade(n: number) {
   const fonte = (c: number) => (c <= 2 ? 10.5 : c === 3 ? 8.8 : c === 4 ? 7.4 : 6.4)
   // até 3 linhas de nome, mais um respiro acima
   const legenda = (c: number) => fonte(c) * 0.3528 * 1.12 * 3 + 1.4
-  let colunas = 2
-  for (; colunas < 6; colunas++) {
-    const lado = (util - gap * (colunas - 1)) / colunas
-    const linhas = Math.ceil(Math.max(1, n) / colunas)
-    if (linhas * (lado + legenda(colunas)) + gap * (linhas - 1) <= ALTURA_GRADE) break
+  const qtd = n || 1
+  // Para cada nº de colunas, a foto quadrada é limitada pela largura OU pela altura disponível;
+  // escolhe-se o nº de colunas que deixa a foto maior, preenchendo a área toda.
+  let melhor = { colunas: 6, lado: 0, linhas: 1 }
+  for (let c = 2; c <= 6; c++) {
+    const linhas = Math.ceil(qtd / c)
+    const porLargura = (util - gap * (c - 1)) / c
+    const porAltura = (ALTURA_GRADE - gap * (linhas - 1)) / linhas - legenda(c)
+    const lado = Math.min(porLargura, porAltura)
+    if (lado > melhor.lado + 0.01) melhor = { colunas: c, lado, linhas }
   }
-  const lado = (util - gap * (colunas - 1)) / colunas
+  let { colunas, lado, linhas } = melhor
+  const larguraColuna = (util - gap * (colunas - 1)) / colunas
+  // Não cabe nem com 6 colunas: mostra só o que cabe (o resto vai para o QR code).
+  let limite = qtd
+  if (lado < 14) {
+    colunas = 6
+    lado = (util - gap * 5) / 6
+    linhas = Math.max(1, Math.floor((ALTURA_GRADE + gap) / (lado + legenda(6) + gap)))
+    limite = linhas * 6
+  }
+  // Sobra de altura vira respiro entre as linhas (até um limite), para a grade ocupar o espaço.
+  const sobraAltura = ALTURA_GRADE - (linhas * (lado + legenda(colunas)) + gap * (linhas - 1))
+  const gapLinha = linhas > 1 ? Math.min(gap + sobraAltura / (linhas - 1), 12) : gap
   return {
     colunas,
     gap,
+    gapLinha,
     lado,
+    larguraColuna: lado < 14 ? lado : larguraColuna,
     legenda: legenda(colunas),
     nome: `${fonte(colunas)}pt`,
     qtd: colunas <= 2 ? '11pt' : colunas === 3 ? '9.5pt' : colunas === 4 ? '8pt' : '7pt',
-    limite: colunas * Math.floor((ALTURA_GRADE + gap) / (lado + legenda(colunas) + gap)),
+    limite,
   }
 }
 
 function CartaoMaterial({ item, d }: { item: ItemResumido; d: ReturnType<typeof densidade> }) {
   const src = fotoDoItem(item)
   return (
-    <li className="flex min-w-0 flex-col">
+    <li className="flex min-w-0 flex-col" style={{ width: `${d.lado}mm` }}>
       <div
         className="relative overflow-hidden rounded-[1.8mm] border-[0.3mm] border-zinc-300 bg-zinc-100"
         style={{ width: `${d.lado}mm`, height: `${d.lado}mm` }}
@@ -410,7 +431,7 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
           <ImagemCaixa caixa={caixa} className="size-[44mm]" />
         </div>
 
-        <div className="mt-[3mm] flex shrink-0 items-stretch gap-[3mm] rounded-[2mm] bg-zinc-100 p-[2.5mm]">
+        <div data-painel className="mt-[3mm] flex shrink-0 items-stretch gap-[3mm] rounded-[2mm] bg-zinc-100 p-[2.5mm]" style={{ height: `${ALTURA_PAINEL}mm` }}>
           <dl className="flex min-w-0 flex-1 flex-col justify-center gap-[1.8mm]">
             {medidas.length ? (
               medidas.map((m) => (
@@ -436,11 +457,11 @@ function AdesivoMateriais({ caixa, itens }: { caixa: CaixaResumo; itens: ItemRes
           ) : null}
         </div>
 
-        <div className="mt-[3mm] min-h-0 flex-1 overflow-hidden">
+        <div data-grade className="mt-[3mm] min-h-0 flex-1 overflow-hidden">
           {itens.length ? (
             <ul
-              className="grid"
-              style={{ gridTemplateColumns: `repeat(${d.colunas}, minmax(0, 1fr))`, gap: `${d.gap}mm` }}
+              className="grid justify-evenly"
+              style={{ gridTemplateColumns: `repeat(${d.colunas}, ${d.lado}mm)`, columnGap: `${d.gap}mm`, rowGap: `${d.gapLinha}mm` }}
             >
               {visiveis.map((i, n) => (
                 <CartaoMaterial key={`${i.material.nome}-${n}`} item={i} d={d} />
